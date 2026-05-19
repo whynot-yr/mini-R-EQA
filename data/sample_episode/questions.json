@@ -2,11 +2,13 @@
   {
     "question_id": "q1",
     "question": "What color is the sofa?",
-    "answer": "gray"
+    "answer": "gray",
+    "gold_frame_ids": ["frame_002", "frame_005"]
   },
   {
     "question_id": "q2",
     "question": "Where is the mirror?",
-    "answer": "bathroom"
+    "answer": "bathroom",
+    "gold_frame_ids": ["frame_004"]
   }
 ]

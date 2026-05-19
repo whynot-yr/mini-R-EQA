@@ -1,0 +1,60 @@
+{
+  "episode_dir": "data/sample_episode",
+  "retriever": "tfidf",
+  "top_k": 1,
+  "num_questions": 2,
+  "average_metrics": {
+    "recall_at_k": 0.75,
+    "precision_at_k": 1.0,
+    "mrr": 1.0
+  },
+  "results": [
+    {
+      "question_id": "q1",
+      "question": "What color is the sofa?",
+      "gold_answer": "gray",
+      "gold_frame_ids": [
+        "frame_002",
+        "frame_005"
+      ],
+      "retrieved_frame_ids": [
+        "frame_005"
+      ],
+      "retrieved": [
+        {
+          "frame_id": "frame_005",
+          "caption": "A close view of the gray sofa near a window.",
+          "score": 0.22200972385657186
+        }
+      ],
+      "metrics": {
+        "recall_at_k": 0.5,
+        "precision_at_k": 1.0,
+        "mrr": 1.0
+      }
+    },
+    {
+      "question_id": "q2",
+      "question": "Where is the mirror?",
+      "gold_answer": "bathroom",
+      "gold_frame_ids": [
+        "frame_004"
+      ],
+      "retrieved_frame_ids": [
+        "frame_004"
+      ],
+      "retrieved": [
+        {
+          "frame_id": "frame_004",
+          "caption": "A bathroom with a sink, mirror, and shower.",
+          "score": 0.18139486054728773
+        }
+      ],
+      "metrics": {
+        "recall_at_k": 1.0,
+        "precision_at_k": 1.0,
+        "mrr": 1.0
+      }
+    }
+  ]
+}
