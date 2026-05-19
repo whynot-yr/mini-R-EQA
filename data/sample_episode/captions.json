@@ -1,0 +1,26 @@
+[
+  {
+    "frame_id": "frame_001",
+    "caption": "A kitchen with a wooden table and two chairs."
+  },
+  {
+    "frame_id": "frame_002",
+    "caption": "A living room with a gray sofa and a small coffee table."
+  },
+  {
+    "frame_id": "frame_003",
+    "caption": "A bedroom with a white bed and a wardrobe."
+  },
+  {
+    "frame_id": "frame_004",
+    "caption": "A bathroom with a sink, mirror, and shower."
+  },
+  {
+    "frame_id": "frame_005",
+    "caption": "A close view of the gray sofa near a window."
+  },
+  {
+    "frame_id": "frame_006",
+    "caption": "A dining area with a round table and several chairs."
+  }
+]

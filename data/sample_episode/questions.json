@@ -1,0 +1,12 @@
+[
+  {
+    "question_id": "q1",
+    "question": "What color is the sofa?",
+    "answer": "gray"
+  },
+  {
+    "question_id": "q2",
+    "question": "Where is the mirror?",
+    "answer": "bathroom"
+  }
+]
