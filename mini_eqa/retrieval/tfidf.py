@@ -1,3 +1,7 @@
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
 def retrieve_topk(captions, question, top_k=3):
     """
     captions: list of {"frame_id": str, "caption": str}
