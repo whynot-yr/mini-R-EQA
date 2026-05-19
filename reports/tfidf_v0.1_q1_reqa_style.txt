@@ -1,0 +1,28 @@
+================================================================================
+Question:
+What color is the sofa?
+
+Gold answer:
+gray
+
+Retrieved evidence:
+frame_005 | score=0.2220 | A close view of the gray sofa near a window.
+frame_002 | score=0.0981 | A living room with a gray sofa and a small coffee table.
+frame_006 | score=0.0000 | A dining area with a round table and several chairs.
+
+Prompt:
+You are answering a question based on retrieved episodic memory.
+
+Question:
+What color is the sofa?
+
+Retrieved evidence:
+- frame_005: A close view of the gray sofa near a window.
+- frame_002: A living room with a gray sofa and a small coffee table.
+- frame_006: A dining area with a round table and several chairs.
+
+Please answer the question using only the evidence above.
+
+Answer:
+Mock answer based on top evidence: A close view of the gray sofa near a window.
+================================================================================

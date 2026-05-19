@@ -1,0 +1,28 @@
+================================================================================
+Question:
+Where is the mirror?
+
+Gold answer:
+bathroom
+
+Retrieved evidence:
+frame_004 | score=0.1814 | A bathroom with a sink, mirror, and shower.
+frame_005 | score=0.1410 | A close view of the gray sofa near a window.
+frame_006 | score=0.0000 | A dining area with a round table and several chairs.
+
+Prompt:
+You are answering a question based on retrieved episodic memory.
+
+Question:
+Where is the mirror?
+
+Retrieved evidence:
+- frame_004: A bathroom with a sink, mirror, and shower.
+- frame_005: A close view of the gray sofa near a window.
+- frame_006: A dining area with a round table and several chairs.
+
+Please answer the question using only the evidence above.
+
+Answer:
+Mock answer based on top evidence: A bathroom with a sink, mirror, and shower.
+================================================================================
