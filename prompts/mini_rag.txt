@@ -1,0 +1,9 @@
+You are answering a question based on retrieved episodic memory.
+
+Question:
+{question}
+
+Retrieved evidence:
+{evidence_text}
+
+Please answer the question using only the evidence above.
