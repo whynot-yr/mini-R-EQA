@@ -156,6 +156,27 @@ python -m mini_eqa.evaluation.run_predictions \
   --output reports/predictions_cached_sbert_deepseek_v0.7.json
 ```
 
+Generate predictions:
+
+```
+python -m mini_eqa.evaluation.run_predictions \
+  --episode_dir data/sample_episode \
+  --retriever cached_sbert \
+  --runner mock \
+  --top_k 3 \
+  --cache_dir data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2 \
+  --limit 2 \
+  --output reports/predictions_cached_sbert_mock_v0.8.json
+```
+
+Evaluate answers:
+
+```
+python -m mini_eqa.evaluation.evaluate_answers \
+  --predictions reports/predictions_cached_sbert_mock_v0.8.json \
+  --output reports/answer_eval_cached_sbert_mock_v0.8.json
+```
+
 Save example outputs:
 
 ```
@@ -170,6 +191,7 @@ Notes:
 - `cached_sbert` is closer to the preprocessing + inference split used in real R-EQA systems.
 - `uniform` ignores the question and acts as a simple baseline against question-aware retrieval methods.
 - `deepseek` turns retrieved evidence plus the prompt into a natural-language predicted answer.
+- `exact_match` is strict, `contains_gold` is useful for toy answers, and `token_f1` gives a simple lexical overlap score.
 
 ## Current Limitations
 
@@ -178,8 +200,10 @@ Notes:
 - Uniform retrieval does not use the question at all.
 - Top-k retrieval may include irrelevant captions when useful evidence is limited.
 - The current data is only a toy sample episode.
+- Real OpenEQA-style evaluation will eventually need semantic or LLM-based answer judging.
 
 ## Next Steps
 
 - Compare retrieval variants on a larger toy dataset or real episodic data.
 - Add answer-level evaluation comparing predicted answers with gold answers.
+- Add an OpenEQA data adapter so the pipeline can move from toy data to real EM-EQA samples.
