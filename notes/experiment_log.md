@@ -126,3 +126,34 @@ python -m mini_eqa.evaluation.evaluate_retrieval --episode_dir data/sample_episo
 
 ### Next Step
 Add a unified retrieval registry or move toward real LLM answer generation, depending on whether the next focus is code structure or end-to-end QA.
+
+## v0.6 Uniform Sampling Baseline
+
+### Goal
+Add a question-agnostic uniform sampling baseline.
+
+### Motivation
+R-EQA-style retrieval should be compared against a simple uniform baseline. Uniform sampling does not use the question and therefore helps measure whether semantic retrieval actually provides better evidence.
+
+### Changes
+- Added `mini_eqa/retrieval/uniform.py`.
+- Added `mini_eqa/retrieval/registry.py`.
+- Added `--retriever uniform` support in `rag.py`.
+- Added `--retriever uniform` support in `evaluate_retrieval.py`.
+
+### Commands
+
+```text
+python -m mini_eqa.baselines.rag --retriever uniform --runner mock --question_id q1 --top_k 3
+python -m mini_eqa.evaluation.evaluate_retrieval --episode_dir data/sample_episode --retriever uniform --top_k 3 --output reports/eval_uniform_v0.6_top3.json
+python -m mini_eqa.baselines.rag --retriever tfidf --runner mock --question_id q1 --top_k 3
+python -m mini_eqa.evaluation.evaluate_retrieval --episode_dir data/sample_episode --retriever cached_sbert --top_k 3 --cache_dir data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2 --output reports/eval_cached_sbert_v0.6_top3.json
+```
+
+### Observation
+- `uniform` predictably performs worse because it ignores the question and only spreads samples across the episode.
+- `tfidf`, `sbert`, and `cached_sbert` are question-aware, so they retrieve more relevant evidence and achieve higher Recall@K / MRR on the toy episode.
+- `cached_sbert` remains aligned with `sbert`, while `uniform` serves as a lower-bound baseline for comparison.
+
+### Next Step
+Add a real LLM runner so retrieved evidence can be converted into predicted answers.
