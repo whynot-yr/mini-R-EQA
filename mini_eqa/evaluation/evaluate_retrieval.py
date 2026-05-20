@@ -10,9 +10,12 @@ from mini_eqa.evaluation.retrieval_metrics import (
     precision_at_k,
     recall_at_k,
 )
+from mini_eqa.retrieval.cached_sbert import retrieve_topk as retrieve_cached_sbert_topk
 from mini_eqa.retrieval.sbert import retrieve_topk as retrieve_sbert_topk
 from mini_eqa.retrieval.tfidf import retrieve_topk as retrieve_tfidf_topk
 from mini_eqa.utils.io_utils import load_json, save_json
+
+DEFAULT_CACHE_MODEL_DIR = "sentence-transformers_all-MiniLM-L6-v2"
 
 
 def get_retriever(name: str):
@@ -24,6 +27,8 @@ def get_retriever(name: str):
         return retrieve_tfidf_topk
     if name == "sbert":
         return retrieve_sbert_topk
+    if name == "cached_sbert":
+        return retrieve_cached_sbert_topk
 
     raise ValueError(f"Unsupported retriever: {name}")
 
@@ -33,6 +38,7 @@ def evaluate_one_question(
     question_item: dict[str, Any],
     retriever_name: str,
     top_k: int,
+    cache_dir: str | Path | None = None,
 ) -> dict[str, Any]:
     """
     Run retrieval for one question and compute retrieval metrics.
@@ -50,11 +56,18 @@ def evaluate_one_question(
 
     retriever = get_retriever(retriever_name)
 
-    retrieved = retriever(
-        captions=captions,
-        question=question,
-        top_k=top_k,
-    )
+    if retriever_name == "cached_sbert":
+        retrieved = retriever(
+            question=question,
+            cache_dir=cache_dir,
+            top_k=top_k,
+        )
+    else:
+        retrieved = retriever(
+            captions=captions,
+            question=question,
+            top_k=top_k,
+        )
 
     retrieved_frame_ids = [item["frame_id"] for item in retrieved]
 
@@ -90,6 +103,7 @@ def evaluate_episode(
     episode_dir: str | Path,
     retriever_name: str,
     top_k: int,
+    cache_dir: str | Path | None = None,
 ) -> dict[str, Any]:
     """
     Evaluate retrieval on all questions in one toy episode.
@@ -101,6 +115,10 @@ def evaluate_episode(
 
     captions = load_json(captions_path)
     questions = load_json(questions_path)
+    resolved_cache_dir = cache_dir
+
+    if retriever_name == "cached_sbert" and resolved_cache_dir is None:
+        resolved_cache_dir = episode_dir / "embeddings" / DEFAULT_CACHE_MODEL_DIR
 
     results = []
 
@@ -110,6 +128,7 @@ def evaluate_episode(
             question_item=question_item,
             retriever_name=retriever_name,
             top_k=top_k,
+            cache_dir=resolved_cache_dir,
         )
         results.append(result)
 
@@ -126,6 +145,7 @@ def evaluate_episode(
     return {
         "episode_dir": str(episode_dir),
         "retriever": retriever_name,
+        "cache_dir": str(resolved_cache_dir) if resolved_cache_dir is not None else None,
         "top_k": top_k,
         "num_questions": len(questions),
         "average_metrics": average_metrics,
@@ -148,7 +168,7 @@ def parse_args() -> argparse.Namespace:
         "--retriever",
         type=str,
         default="tfidf",
-        choices=["tfidf", "sbert"],
+        choices=["tfidf", "sbert", "cached_sbert"],
         help="Retriever name.",
     )
     parser.add_argument(
@@ -162,6 +182,12 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="Optional path to save the evaluation result as JSON.",
+    )
+    parser.add_argument(
+        "--cache_dir",
+        type=str,
+        default=None,
+        help="Optional cache dir for cached_sbert retrieval.",
     )
 
     return parser.parse_args()
@@ -177,6 +203,7 @@ def main() -> None:
         episode_dir=args.episode_dir,
         retriever_name=args.retriever,
         top_k=args.top_k,
+        cache_dir=args.cache_dir,
     )
 
     print("=" * 80)
@@ -184,6 +211,7 @@ def main() -> None:
     print("=" * 80)
     print(f"Episode dir: {report['episode_dir']}")
     print(f"Retriever: {report['retriever']}")
+    print(f"Cache dir: {report['cache_dir']}")
     print(f"Top-K: {report['top_k']}")
     print(f"Number of questions: {report['num_questions']}")
     print()

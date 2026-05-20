@@ -91,3 +91,38 @@ python -m mini_eqa.evaluation.evaluate_retrieval --episode_dir data/sample_episo
 
 ### Next Step
 Build embedding cache so captions are encoded once during preprocessing instead of re-encoding all captions for every question.
+
+## v0.5 SBERT Caption Embedding Cache
+
+### Goal
+Separate caption embedding preprocessing from question-time retrieval.
+
+### Motivation
+In v0.4, the SBERT retriever encodes all captions for every question. This is inefficient and does not match the real R-EQA setting. In R-EQA-style retrieval, episode captions should be encoded once during preprocessing, while each question only needs to be encoded at inference time.
+
+### Changes
+- Added `mini_eqa/preprocess/build_caption_embeddings.py`.
+- Added `mini_eqa/retrieval/cached_sbert.py`.
+- Added `--retriever cached_sbert` support in `mini_eqa/baselines/rag.py`.
+- Added `--retriever cached_sbert` support in `mini_eqa/evaluation/evaluate_retrieval.py`.
+- Ignored embedding cache files in `.gitignore`.
+
+### Commands
+
+```text
+python -m mini_eqa.preprocess.build_caption_embeddings --episode_dir data/sample_episode --model_name sentence-transformers/all-MiniLM-L6-v2 --output_dir data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2 --overwrite
+python -m mini_eqa.baselines.rag --retriever tfidf --runner mock --question_id q1 --top_k 3
+python -m mini_eqa.baselines.rag --retriever sbert --runner mock --question_id q1 --top_k 3
+python -m mini_eqa.baselines.rag --retriever cached_sbert --runner mock --question_id q1 --top_k 3 --cache_dir data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2
+python -m mini_eqa.evaluation.evaluate_retrieval --episode_dir data/sample_episode --retriever tfidf --top_k 3 --output reports/eval_tfidf_v0.5_top3.json
+python -m mini_eqa.evaluation.evaluate_retrieval --episode_dir data/sample_episode --retriever sbert --top_k 3 --output reports/eval_sbert_v0.5_top3.json
+python -m mini_eqa.evaluation.evaluate_retrieval --episode_dir data/sample_episode --retriever cached_sbert --top_k 3 --cache_dir data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2 --output reports/eval_cached_sbert_v0.5_top3.json
+```
+
+### Observation
+- `cached_sbert` returns the same top-3 results as `sbert` on the toy episode for the tested questions, because both use the same SBERT model and normalized cosine-style similarity.
+- `cached_sbert` avoids re-encoding captions for every question. Only the question embedding is computed at inference time.
+- The toy episode is too small to show a meaningful speedup, but the code structure now matches the preprocessing + inference split used in real R-EQA pipelines much better.
+
+### Next Step
+Add a unified retrieval registry or move toward real LLM answer generation, depending on whether the next focus is code structure or end-to-end QA.

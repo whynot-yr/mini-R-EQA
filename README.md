@@ -2,14 +2,19 @@
 
 This repository is a minimal R-EQA-style prototype for understanding retrieval-augmented episodic memory question answering.
 
-The current version implements a TF-IDF caption retrieval baseline:
+The project currently supports three retrieval modes:
 
-captions + question -> TF-IDF retrieval -> top-k evidence -> prompt construction -> mock answer
+- `tfidf`: lexical retrieval baseline
+- `sbert`: dense retrieval with on-the-fly caption encoding
+- `cached_sbert`: dense retrieval with precomputed caption embeddings
 
 ## Current Status
 
 - `v0.1-TF-IDF`: original one-file TF-IDF demo
-- `v0.1.1-REQA-STYLE`: refactored into a simplified R-EQA-style project structure
+- `v0.2-EVAL`: retrieval evaluation with Recall@K / Precision@K / MRR
+- `v0.3-GENERIC-RAG`: generic retrieval + prompt + mock runner entrypoint
+- `v0.4-SBERT`: dense retrieval baseline
+- `v0.5-EMBEDDING-CACHE`: offline caption embedding cache for dense retrieval
 
 The current answer is still a mock answer. This version only verifies retrieval and prompt construction.
 
@@ -18,8 +23,13 @@ The current answer is still a mock answer. This version only verifies retrieval 
 ```text
 mini_eqa/
 ├── baselines/
+│   ├── rag.py
 │   └── tfidf_rag.py
+├── preprocess/
+│   └── build_caption_embeddings.py
 ├── retrieval/
+│   ├── cached_sbert.py
+│   ├── sbert.py
 │   └── tfidf.py
 ├── runners/
 │   └── mock_runner.py
@@ -30,6 +40,7 @@ mini_eqa/
 data/
 └── sample_episode/
     ├── captions.json
+    ├── embeddings/
     └── questions.json
 
 prompts/
@@ -41,19 +52,69 @@ notes/
 
 ## Run
 
-Run the TF-IDF RAG baseline:
+Run the original TF-IDF RAG baseline:
 
 ```
 python -m mini_eqa.baselines.tfidf_rag --question_id q1 --top_k 3
 python -m mini_eqa.baselines.tfidf_rag --question_id q2 --top_k 3
 ```
 
-Save outputs:
+Run the generic pipeline with TF-IDF:
+
+```
+python -m mini_eqa.baselines.rag --retriever tfidf --runner mock --question_id q1 --top_k 3
+```
+
+Run the generic pipeline with on-the-fly SBERT:
+
+```
+python -m mini_eqa.baselines.rag --retriever sbert --runner mock --question_id q1 --top_k 3
+```
+
+Build caption embedding cache:
+
+```
+python -m mini_eqa.preprocess.build_caption_embeddings \
+  --episode_dir data/sample_episode \
+  --model_name sentence-transformers/all-MiniLM-L6-v2 \
+  --output_dir data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2 \
+  --overwrite
+```
+
+Run generic RAG with cached SBERT:
+
+```
+python -m mini_eqa.baselines.rag \
+  --retriever cached_sbert \
+  --runner mock \
+  --question_id q1 \
+  --top_k 3 \
+  --cache_dir data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2
+```
+
+Evaluate cached SBERT:
+
+```
+python -m mini_eqa.evaluation.evaluate_retrieval \
+  --episode_dir data/sample_episode \
+  --retriever cached_sbert \
+  --top_k 3 \
+  --cache_dir data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2 \
+  --output reports/eval_cached_sbert_v0.5_top3.json
+```
+
+Save example outputs:
 
 ```
 python -m mini_eqa.baselines.tfidf_rag --question_id q1 --top_k 3 | tee reports/tfidf_v0.1_q1_reqa_style.txt
 python -m mini_eqa.baselines.tfidf_rag --question_id q2 --top_k 3 | tee reports/tfidf_v0.1_q2_reqa_style.txt
 ```
+
+Notes:
+
+- `sbert` does dense retrieval by encoding captions and the question on the fly.
+- `cached_sbert` uses pre-built caption embeddings and only encodes the question at inference time.
+- `cached_sbert` is closer to the preprocessing + inference split used in real R-EQA systems.
 
 ## Current Limitations
 
@@ -64,7 +125,6 @@ python -m mini_eqa.baselines.tfidf_rag --question_id q2 --top_k 3 | tee reports/
 
 ## Next Steps
 
-- Add SBERT / sentence-transformer retrieval.
-- Compare TF-IDF and SBERT top-k evidence.
-- Add a simple evaluation script.
+- Add a unified retrieval registry.
+- Compare retrieval variants on a larger toy dataset or real episodic data.
 - Later replace mock answer with real LLM answering.

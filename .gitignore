@@ -21,6 +21,8 @@ runs/
 logs/
 wandb/
 results/
+*.npy
+data/**/embeddings/
 
 # Models
 checkpoints/
