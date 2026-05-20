@@ -157,3 +157,37 @@ python -m mini_eqa.evaluation.evaluate_retrieval --episode_dir data/sample_episo
 
 ### Next Step
 Add a real LLM runner so retrieved evidence can be converted into predicted answers.
+
+## v0.7 Real LLM Runner
+
+### Goal
+
+Replace the mock answer placeholder with a real LLM answer generation runner.
+
+### Motivation
+
+Previous versions only evaluated retrieval quality. R-EQA ultimately requires retrieved evidence to be converted into natural language answers by an LLM.
+
+### Changes
+
+- Added `deepseek_runner.py`.
+- Added runner registry.
+- Added `--runner deepseek` support in `rag.py`.
+- Added `run_predictions.py` for batch answer generation.
+- Added `.env.example`.
+
+### Commands
+
+```text
+python -m mini_eqa.evaluation.run_predictions --episode_dir data/sample_episode --retriever cached_sbert --runner mock --top_k 3 --cache_dir data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2 --limit 2 --output reports/predictions_cached_sbert_mock_v0.7.json
+```
+
+### Observation
+
+- The batch prediction path now saves retrieved evidence, prompt text, and predicted answers in one report.
+- With the mock runner, the saved `predicted_answer` still mirrors the top evidence caption, which is useful for verifying the retrieval-to-prediction plumbing before spending API budget.
+- The retrieved evidence is now passed through the same prompt construction path that a real LLM runner will use, so the remaining gap is model invocation rather than pipeline wiring.
+
+### Next Step
+
+Add answer-level evaluation comparing predicted answers with gold answers.
