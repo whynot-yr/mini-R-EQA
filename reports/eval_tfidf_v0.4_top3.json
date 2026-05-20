@@ -1,0 +1,189 @@
+{
+  "episode_dir": "data/sample_episode",
+  "retriever": "tfidf",
+  "top_k": 3,
+  "num_questions": 5,
+  "average_metrics": {
+    "recall_at_k": 0.8,
+    "precision_at_k": 0.3333333333333333,
+    "mrr": 0.6666666666666666
+  },
+  "results": [
+    {
+      "question_id": "q1",
+      "question": "What color is the sofa?",
+      "gold_answer": "gray",
+      "gold_frame_ids": [
+        "frame_002",
+        "frame_005"
+      ],
+      "retrieved_frame_ids": [
+        "frame_005",
+        "frame_002",
+        "frame_006"
+      ],
+      "retrieved": [
+        {
+          "frame_id": "frame_005",
+          "caption": "A close view of the gray sofa near a window.",
+          "score": 0.22200972385657186
+        },
+        {
+          "frame_id": "frame_002",
+          "caption": "A living room with a gray sofa and a small coffee table.",
+          "score": 0.09812639872109645
+        },
+        {
+          "frame_id": "frame_006",
+          "caption": "A dining area with a round table and several chairs.",
+          "score": 0.0
+        }
+      ],
+      "metrics": {
+        "recall_at_k": 1.0,
+        "precision_at_k": 0.6666666666666666,
+        "mrr": 1.0
+      }
+    },
+    {
+      "question_id": "q2",
+      "question": "Where is the mirror?",
+      "gold_answer": "bathroom",
+      "gold_frame_ids": [
+        "frame_004"
+      ],
+      "retrieved_frame_ids": [
+        "frame_004",
+        "frame_005",
+        "frame_006"
+      ],
+      "retrieved": [
+        {
+          "frame_id": "frame_004",
+          "caption": "A bathroom with a sink, mirror, and shower.",
+          "score": 0.18139486054728773
+        },
+        {
+          "frame_id": "frame_005",
+          "caption": "A close view of the gray sofa near a window.",
+          "score": 0.1410227851149697
+        },
+        {
+          "frame_id": "frame_006",
+          "caption": "A dining area with a round table and several chairs.",
+          "score": 0.0
+        }
+      ],
+      "metrics": {
+        "recall_at_k": 1.0,
+        "precision_at_k": 0.3333333333333333,
+        "mrr": 1.0
+      }
+    },
+    {
+      "question_id": "q3",
+      "question": "Where can I wash my hands?",
+      "gold_answer": "bathroom",
+      "gold_frame_ids": [
+        "frame_004"
+      ],
+      "retrieved_frame_ids": [
+        "frame_006",
+        "frame_005",
+        "frame_004"
+      ],
+      "retrieved": [
+        {
+          "frame_id": "frame_006",
+          "caption": "A dining area with a round table and several chairs.",
+          "score": 0.0
+        },
+        {
+          "frame_id": "frame_005",
+          "caption": "A close view of the gray sofa near a window.",
+          "score": 0.0
+        },
+        {
+          "frame_id": "frame_004",
+          "caption": "A bathroom with a sink, mirror, and shower.",
+          "score": 0.0
+        }
+      ],
+      "metrics": {
+        "recall_at_k": 1.0,
+        "precision_at_k": 0.3333333333333333,
+        "mrr": 0.3333333333333333
+      }
+    },
+    {
+      "question_id": "q4",
+      "question": "Which room has a place to sleep?",
+      "gold_answer": "bedroom",
+      "gold_frame_ids": [
+        "frame_003"
+      ],
+      "retrieved_frame_ids": [
+        "frame_002",
+        "frame_006",
+        "frame_005"
+      ],
+      "retrieved": [
+        {
+          "frame_id": "frame_002",
+          "caption": "A living room with a gray sofa and a small coffee table.",
+          "score": 0.11646232277163399
+        },
+        {
+          "frame_id": "frame_006",
+          "caption": "A dining area with a round table and several chairs.",
+          "score": 0.0
+        },
+        {
+          "frame_id": "frame_005",
+          "caption": "A close view of the gray sofa near a window.",
+          "score": 0.0
+        }
+      ],
+      "metrics": {
+        "recall_at_k": 0.0,
+        "precision_at_k": 0.0,
+        "mrr": 0.0
+      }
+    },
+    {
+      "question_id": "q5",
+      "question": "Where can people eat together?",
+      "gold_answer": "dining area",
+      "gold_frame_ids": [
+        "frame_006"
+      ],
+      "retrieved_frame_ids": [
+        "frame_006",
+        "frame_005",
+        "frame_004"
+      ],
+      "retrieved": [
+        {
+          "frame_id": "frame_006",
+          "caption": "A dining area with a round table and several chairs.",
+          "score": 0.0
+        },
+        {
+          "frame_id": "frame_005",
+          "caption": "A close view of the gray sofa near a window.",
+          "score": 0.0
+        },
+        {
+          "frame_id": "frame_004",
+          "caption": "A bathroom with a sink, mirror, and shower.",
+          "score": 0.0
+        }
+      ],
+      "metrics": {
+        "recall_at_k": 1.0,
+        "precision_at_k": 0.3333333333333333,
+        "mrr": 1.0
+      }
+    }
+  ]
+}

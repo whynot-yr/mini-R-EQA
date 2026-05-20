@@ -10,5 +10,23 @@
     "question": "Where is the mirror?",
     "answer": "bathroom",
     "gold_frame_ids": ["frame_004"]
+  },
+  {
+    "question_id": "q3",
+    "question": "Where can I wash my hands?",
+    "answer": "bathroom",
+    "gold_frame_ids": ["frame_004"]
+  },
+  {
+    "question_id": "q4",
+    "question": "Which room has a place to sleep?",
+    "answer": "bedroom",
+    "gold_frame_ids": ["frame_003"]
+  },
+  {
+    "question_id": "q5",
+    "question": "Where can people eat together?",
+    "answer": "dining area",
+    "gold_frame_ids": ["frame_006"]
   }
 ]

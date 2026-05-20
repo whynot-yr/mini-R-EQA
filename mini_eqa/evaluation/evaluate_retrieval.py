@@ -10,6 +10,7 @@ from mini_eqa.evaluation.retrieval_metrics import (
     precision_at_k,
     recall_at_k,
 )
+from mini_eqa.retrieval.sbert import retrieve_topk as retrieve_sbert_topk
 from mini_eqa.retrieval.tfidf import retrieve_topk as retrieve_tfidf_topk
 from mini_eqa.utils.io_utils import load_json, save_json
 
@@ -17,15 +18,12 @@ from mini_eqa.utils.io_utils import load_json, save_json
 def get_retriever(name: str):
     """
     Return a retriever function by name.
-
-    For v0.2, we only support TF-IDF.
-    Later, you can add:
-        - sbert
-        - hybrid
-        - uniform
     """
+
     if name == "tfidf":
         return retrieve_tfidf_topk
+    if name == "sbert":
+        return retrieve_sbert_topk
 
     raise ValueError(f"Unsupported retriever: {name}")
 
@@ -150,8 +148,8 @@ def parse_args() -> argparse.Namespace:
         "--retriever",
         type=str,
         default="tfidf",
-        choices=["tfidf"],
-        help="Retriever name. For v0.2, only tfidf is supported.",
+        choices=["tfidf", "sbert"],
+        help="Retriever name.",
     )
     parser.add_argument(
         "--top_k",
