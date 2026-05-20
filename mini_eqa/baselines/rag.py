@@ -4,18 +4,12 @@ import argparse
 from pathlib import Path
 
 from mini_eqa.retrieval.registry import RETRIEVER_NAMES, get_retriever
-from mini_eqa.runners.mock_runner import mock_answer
+from mini_eqa.runners.registry import RUNNER_NAMES, get_runner
 from mini_eqa.utils.io_utils import load_json
 from mini_eqa.utils.prompt_utils import build_prompt
 
 
 DEFAULT_CACHE_MODEL_DIR = "sentence-transformers_all-MiniLM-L6-v2"
-
-
-def get_runner(name: str):
-    if name == "mock":
-        return mock_answer
-    raise ValueError(f"Unsupported runner: {name}")
 
 
 def find_question(questions: list[dict], question_id: str) -> dict:
@@ -51,9 +45,65 @@ def print_result(
     print("=" * 80)
 
 
+def resolve_cache_dir(episode_dir: str | Path, cache_dir: str | Path | None) -> Path:
+    episode_dir = Path(episode_dir)
+    if cache_dir is not None:
+        return Path(cache_dir)
+    return episode_dir / "embeddings" / DEFAULT_CACHE_MODEL_DIR
+
+
+def run_retrieval(
+    retriever_name: str,
+    captions: list[dict],
+    question: str,
+    top_k: int,
+    episode_dir: str | Path,
+    cache_dir: str | Path | None = None,
+) -> tuple[list[dict], Path | None]:
+    retriever = get_retriever(retriever_name)
+
+    if retriever_name == "cached_sbert":
+        resolved_cache_dir = resolve_cache_dir(episode_dir=episode_dir, cache_dir=cache_dir)
+        retrieved = retriever(
+            question=question,
+            cache_dir=resolved_cache_dir,
+            top_k=top_k,
+        )
+        return retrieved, resolved_cache_dir
+
+    retrieved = retriever(
+        captions=captions,
+        question=question,
+        top_k=top_k,
+    )
+    return retrieved, None
+
+
+def run_answer_generation(
+    runner_name: str,
+    question: str,
+    retrieved: list[dict],
+    prompt: str,
+    model: str,
+    max_output_tokens: int,
+) -> str:
+    runner = get_runner(runner_name)
+
+    if runner_name == "mock":
+        return runner(question=question, retrieved=retrieved)
+
+    return runner(
+        question=question,
+        retrieved=retrieved,
+        prompt=prompt,
+        model=model,
+        max_output_tokens=max_output_tokens,
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the generic mini-R-EQA retrieval and mock-answer pipeline."
+        description="Run the generic mini-R-EQA retrieval and answer pipeline."
     )
     parser.add_argument("--episode_dir", type=str, default="data/sample_episode")
     parser.add_argument("--question_id", type=str, default="q1")
@@ -63,10 +113,12 @@ def parse_args() -> argparse.Namespace:
         default="tfidf",
         choices=RETRIEVER_NAMES,
     )
-    parser.add_argument("--runner", type=str, default="mock", choices=["mock"])
+    parser.add_argument("--runner", type=str, default="mock", choices=RUNNER_NAMES)
     parser.add_argument("--top_k", type=int, default=3)
     parser.add_argument("--prompt", type=str, default="mini_rag")
     parser.add_argument("--cache_dir", type=str, default=None)
+    parser.add_argument("--model", type=str, default="gpt-4o-mini")
+    parser.add_argument("--max_output_tokens", type=int, default=128)
     return parser.parse_args()
 
 
@@ -84,25 +136,14 @@ def main() -> None:
     question = question_item["question"]
     gold_answer = question_item.get("answer")
 
-    retriever = get_retriever(args.retriever)
-    runner = get_runner(args.runner)
-    cache_dir = None
-
-    if args.retriever == "cached_sbert":
-        cache_dir = Path(args.cache_dir) if args.cache_dir is not None else (
-            episode_dir / "embeddings" / DEFAULT_CACHE_MODEL_DIR
-        )
-        retrieved = retriever(
-            question=question,
-            cache_dir=cache_dir,
-            top_k=args.top_k,
-        )
-    else:
-        retrieved = retriever(
-            captions=captions,
-            question=question,
-            top_k=args.top_k,
-        )
+    retrieved, cache_dir = run_retrieval(
+        retriever_name=args.retriever,
+        captions=captions,
+        question=question,
+        top_k=args.top_k,
+        episode_dir=episode_dir,
+        cache_dir=args.cache_dir,
+    )
 
     print(f"Retriever: {args.retriever}")
     print(f"Cache dir: {cache_dir}")
@@ -112,7 +153,14 @@ def main() -> None:
         retrieved=retrieved,
         prompt_name=args.prompt,
     )
-    answer = runner(question=question, retrieved=retrieved)
+    answer = run_answer_generation(
+        runner_name=args.runner,
+        question=question,
+        retrieved=retrieved,
+        prompt=prompt,
+        model=args.model,
+        max_output_tokens=args.max_output_tokens,
+    )
 
     print_result(
         question=question,
