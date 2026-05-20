@@ -3,25 +3,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from mini_eqa.retrieval.cached_sbert import retrieve_topk as retrieve_cached_sbert_topk
-from mini_eqa.retrieval.sbert import retrieve_topk as retrieve_sbert_topk
-from mini_eqa.retrieval.tfidf import retrieve_topk as retrieve_tfidf_topk
+from mini_eqa.retrieval.registry import RETRIEVER_NAMES, get_retriever
 from mini_eqa.runners.mock_runner import mock_answer
 from mini_eqa.utils.io_utils import load_json
 from mini_eqa.utils.prompt_utils import build_prompt
 
 
 DEFAULT_CACHE_MODEL_DIR = "sentence-transformers_all-MiniLM-L6-v2"
-
-
-def get_retriever(name: str):
-    if name == "tfidf":
-        return retrieve_tfidf_topk
-    if name == "sbert":
-        return retrieve_sbert_topk
-    if name == "cached_sbert":
-        return retrieve_cached_sbert_topk
-    raise ValueError(f"Unsupported retriever: {name}")
 
 
 def get_runner(name: str):
@@ -73,7 +61,7 @@ def parse_args() -> argparse.Namespace:
         "--retriever",
         type=str,
         default="tfidf",
-        choices=["tfidf", "sbert", "cached_sbert"],
+        choices=RETRIEVER_NAMES,
     )
     parser.add_argument("--runner", type=str, default="mock", choices=["mock"])
     parser.add_argument("--top_k", type=int, default=3)

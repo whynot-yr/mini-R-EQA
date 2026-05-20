@@ -10,27 +10,10 @@ from mini_eqa.evaluation.retrieval_metrics import (
     precision_at_k,
     recall_at_k,
 )
-from mini_eqa.retrieval.cached_sbert import retrieve_topk as retrieve_cached_sbert_topk
-from mini_eqa.retrieval.sbert import retrieve_topk as retrieve_sbert_topk
-from mini_eqa.retrieval.tfidf import retrieve_topk as retrieve_tfidf_topk
+from mini_eqa.retrieval.registry import RETRIEVER_NAMES, get_retriever
 from mini_eqa.utils.io_utils import load_json, save_json
 
 DEFAULT_CACHE_MODEL_DIR = "sentence-transformers_all-MiniLM-L6-v2"
-
-
-def get_retriever(name: str):
-    """
-    Return a retriever function by name.
-    """
-
-    if name == "tfidf":
-        return retrieve_tfidf_topk
-    if name == "sbert":
-        return retrieve_sbert_topk
-    if name == "cached_sbert":
-        return retrieve_cached_sbert_topk
-
-    raise ValueError(f"Unsupported retriever: {name}")
 
 
 def evaluate_one_question(
@@ -168,7 +151,7 @@ def parse_args() -> argparse.Namespace:
         "--retriever",
         type=str,
         default="tfidf",
-        choices=["tfidf", "sbert", "cached_sbert"],
+        choices=RETRIEVER_NAMES,
         help="Retriever name.",
     )
     parser.add_argument(
