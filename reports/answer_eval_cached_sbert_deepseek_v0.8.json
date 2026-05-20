@@ -1,0 +1,33 @@
+{
+  "input_predictions": "reports/predictions_cached_sbert_deepseek_v0.7.json",
+  "num_predictions": 2,
+  "average_metrics": {
+    "exact_match": 0.0,
+    "contains_gold": 1.0,
+    "token_f1": 0.2909090909090909
+  },
+  "results": [
+    {
+      "question_id": "q1",
+      "question": "What color is the sofa?",
+      "gold_answer": "gray",
+      "predicted_answer": "The sofa is gray.",
+      "metrics": {
+        "exact_match": 0.0,
+        "contains_gold": 1.0,
+        "token_f1": 0.4
+      }
+    },
+    {
+      "question_id": "q2",
+      "question": "Where is the mirror?",
+      "gold_answer": "bathroom",
+      "predicted_answer": "Based on the evidence, the mirror is in the bathroom.",
+      "metrics": {
+        "exact_match": 0.0,
+        "contains_gold": 1.0,
+        "token_f1": 0.18181818181818182
+      }
+    }
+  ]
+}

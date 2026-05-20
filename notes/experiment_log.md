@@ -191,3 +191,32 @@ python -m mini_eqa.evaluation.run_predictions --episode_dir data/sample_episode 
 ### Next Step
 
 Add answer-level evaluation comparing predicted answers with gold answers.
+
+## v0.8 Answer Evaluation
+
+### Goal
+Evaluate predicted answers against gold answers.
+
+### Motivation
+Retrieval metrics only measure whether the system finds correct evidence. R-EQA also needs answer-level evaluation because the final output is a natural language answer.
+
+### Changes
+- Added `answer_metrics.py`.
+- Added `evaluate_answers.py`.
+- Added exact match, contains-gold, and token-F1 metrics.
+
+### Commands
+
+```text
+python -m mini_eqa.evaluation.run_predictions --episode_dir data/sample_episode --retriever cached_sbert --runner mock --top_k 3 --cache_dir data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2 --limit 2 --output reports/predictions_cached_sbert_mock_v0.8.json
+python -m mini_eqa.evaluation.evaluate_answers --predictions reports/predictions_cached_sbert_mock_v0.8.json --output reports/answer_eval_cached_sbert_mock_v0.8.json
+python -m mini_eqa.evaluation.evaluate_answers --predictions reports/predictions_cached_sbert_deepseek_v0.7.json --output reports/answer_eval_cached_sbert_deepseek_v0.8.json
+```
+
+### Observation
+- The mock runner performs poorly on answer-level metrics because it returns the top evidence caption rather than a direct answer string.
+- The deepseek answer report is much stronger on this toy episode because the model converts the retrieved evidence into short answer phrases like `gray` and `bathroom`.
+- `exact_match` is intentionally strict, while `contains_gold` and `token_f1` are more forgiving and easier to interpret on toy answers.
+
+### Next Step
+Add an OpenEQA data adapter so the pipeline can move from toy data to real EM-EQA samples.

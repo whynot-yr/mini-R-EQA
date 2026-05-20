@@ -1,0 +1,33 @@
+{
+  "input_predictions": "reports/predictions_cached_sbert_mock_v0.8.json",
+  "num_predictions": 2,
+  "average_metrics": {
+    "exact_match": 0.0,
+    "contains_gold": 1.0,
+    "token_f1": 0.12549019607843137
+  },
+  "results": [
+    {
+      "question_id": "q1",
+      "question": "What color is the sofa?",
+      "gold_answer": "gray",
+      "predicted_answer": "Mock answer based on top evidence: A close view of the gray sofa near a window.",
+      "metrics": {
+        "exact_match": 0.0,
+        "contains_gold": 1.0,
+        "token_f1": 0.11764705882352941
+      }
+    },
+    {
+      "question_id": "q2",
+      "question": "Where is the mirror?",
+      "gold_answer": "bathroom",
+      "predicted_answer": "Mock answer based on top evidence: A bathroom with a sink, mirror, and shower.",
+      "metrics": {
+        "exact_match": 0.0,
+        "contains_gold": 1.0,
+        "token_f1": 0.13333333333333333
+      }
+    }
+  ]
+}
