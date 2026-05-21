@@ -69,6 +69,17 @@ python -m mini_eqa.exporters.openeqa_predictions \
   --include_debug_fields
 ```
 
+Prepare an OpenEQA small subset:
+
+```bash
+python scripts/prepare_openeqa_subset.py \
+  --qa_file data/toy_openeqa/open_eqa_toy.json \
+  --frames_root data/sample_frames \
+  --output_root data/openeqa_prepared_toy \
+  --limit 2 \
+  --overwrite
+```
+
 ## Docs
 
 - Architecture and module roles:
@@ -81,6 +92,8 @@ python -m mini_eqa.exporters.openeqa_predictions \
   [docs/reproduction_checklist.md](/home/whynot/ai_research/r_net/mini_circle/docs/reproduction_checklist.md)
 - OpenEQA-compatible export notes:
   [docs/openeqa_export.md](/home/whynot/ai_research/r_net/mini_circle/docs/openeqa_export.md)
+- OpenEQA small-subset directory convention:
+  [docs/openeqa_subset.md](/home/whynot/ai_research/r_net/mini_circle/docs/openeqa_subset.md)
 - Reusable experiment configs:
   [configs/](/home/whynot/ai_research/r_net/mini_circle/configs)
 

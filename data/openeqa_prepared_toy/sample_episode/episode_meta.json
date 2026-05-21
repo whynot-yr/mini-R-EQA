@@ -1,0 +1,8 @@
+{
+  "episode_history": "sample_episode",
+  "scene_id_list": [
+    "toy_scene"
+  ],
+  "num_questions": 2,
+  "frames_dir": null
+}

@@ -1,0 +1,30 @@
+[
+  {
+    "question_id": "toy_q1",
+    "question": "What color is the sofa?",
+    "answer": "gray",
+    "episode_history": "sample_episode",
+    "scene_id": "toy_scene",
+    "raw_item": {
+      "question_id": "toy_q1",
+      "question": "What color is the sofa?",
+      "answer": "gray",
+      "episode_history": "sample_episode",
+      "scene_id": "toy_scene"
+    }
+  },
+  {
+    "question_id": "toy_q2",
+    "question": "Where is the mirror?",
+    "answer": "bathroom",
+    "episode_history": "sample_episode",
+    "scene_id": "toy_scene",
+    "raw_item": {
+      "question_id": "toy_q2",
+      "question": "Where is the mirror?",
+      "answer": "bathroom",
+      "episode_history": "sample_episode",
+      "scene_id": "toy_scene"
+    }
+  }
+]
