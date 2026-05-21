@@ -10,6 +10,16 @@ from mini_eqa.utils.io_utils import load_json, save_json
 from mini_eqa.utils.prompt_utils import build_prompt
 
 
+def validate_prediction_args(
+    top_k: int,
+    limit: int | None,
+) -> None:
+    if top_k <= 0:
+        raise ValueError(f"top_k must be positive, got {top_k}")
+    if limit is not None and limit <= 0:
+        raise ValueError(f"limit must be positive when provided, got {limit}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run batch question answering and save prediction reports."
@@ -27,20 +37,27 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
-    args = parse_args()
+def run_prediction_pipeline(
+    *,
+    episode_dir: str | Path,
+    retriever: str,
+    runner: str,
+    top_k: int,
+    cache_dir: str | Path | None,
+    prompt_name: str,
+    model: str,
+    max_output_tokens: int,
+    output: str | Path,
+    limit: int | None = None,
+) -> dict:
+    validate_prediction_args(top_k=top_k, limit=limit)
 
-    if args.top_k <= 0:
-        raise ValueError(f"top_k must be positive, got {args.top_k}")
-    if args.limit is not None and args.limit <= 0:
-        raise ValueError(f"limit must be positive when provided, got {args.limit}")
-
-    episode_dir = Path(args.episode_dir)
+    episode_dir = Path(episode_dir)
     captions = load_json(episode_dir / "captions.json")
     questions = load_json(episode_dir / "questions.json")
 
-    if args.limit is not None:
-        questions = questions[:args.limit]
+    if limit is not None:
+        questions = questions[:limit]
 
     predictions = []
     resolved_cache_dir = None
@@ -48,25 +65,25 @@ def main() -> None:
     for question_item in questions:
         question = question_item["question"]
         retrieved, resolved_cache_dir = run_retrieval(
-            retriever_name=args.retriever,
+            retriever_name=retriever,
             captions=captions,
             question=question,
-            top_k=args.top_k,
+            top_k=top_k,
             episode_dir=episode_dir,
-            cache_dir=args.cache_dir,
+            cache_dir=cache_dir,
         )
         prompt = build_prompt(
             question=question,
             retrieved=retrieved,
-            prompt_name=args.prompt,
+            prompt_name=prompt_name,
         )
         predicted_answer = run_answer_generation(
-            runner_name=args.runner,
+            runner_name=runner,
             question=question,
             retrieved=retrieved,
             prompt=prompt,
-            model=args.model,
-            max_output_tokens=args.max_output_tokens,
+            model=model,
+            max_output_tokens=max_output_tokens,
         )
         predictions.append(
             {
@@ -82,16 +99,21 @@ def main() -> None:
 
     report = {
         "episode_dir": str(episode_dir),
-        "retriever": args.retriever,
-        "runner": args.runner,
-        "top_k": args.top_k,
-        "model": args.model,
+        "retriever": retriever,
+        "runner": runner,
+        "top_k": top_k,
+        "model": model,
         "cache_dir": str(resolved_cache_dir) if resolved_cache_dir is not None else None,
         "num_questions": len(predictions),
         "predictions": predictions,
     }
 
-    save_json(report, args.output)
+    save_json(report, output)
+    return report
+
+
+def print_prediction_summary(report: dict, output: str | Path) -> None:
+    output = Path(output)
 
     print("=" * 80)
     print("Prediction Run")
@@ -102,7 +124,24 @@ def main() -> None:
     print(f"Model: {report['model']}")
     print(f"Top-K: {report['top_k']}")
     print(f"Number of questions: {report['num_questions']}")
-    print(f"Saved report to: {args.output}")
+    print(f"Saved report to: {output}")
+
+
+def main() -> None:
+    args = parse_args()
+    report = run_prediction_pipeline(
+        episode_dir=args.episode_dir,
+        retriever=args.retriever,
+        runner=args.runner,
+        top_k=args.top_k,
+        cache_dir=args.cache_dir,
+        prompt_name=args.prompt,
+        model=args.model,
+        max_output_tokens=args.max_output_tokens,
+        output=args.output,
+        limit=args.limit,
+    )
+    print_prediction_summary(report, args.output)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,66 @@
+{
+  "episode_dir": "data/sample_episode",
+  "retriever": "uniform",
+  "runner": "mock",
+  "top_k": 3,
+  "model": "gpt-4o-mini",
+  "cache_dir": null,
+  "num_questions": 2,
+  "predictions": [
+    {
+      "question_id": "q1",
+      "question": "What color is the sofa?",
+      "gold_answer": "gray",
+      "gold_frame_ids": [
+        "frame_002",
+        "frame_005"
+      ],
+      "retrieved": [
+        {
+          "frame_id": "frame_001",
+          "caption": "A kitchen with a wooden table and two chairs.",
+          "score": 1.0
+        },
+        {
+          "frame_id": "frame_003",
+          "caption": "A bedroom with a white bed and a wardrobe.",
+          "score": 1.0
+        },
+        {
+          "frame_id": "frame_006",
+          "caption": "A dining area with a round table and several chairs.",
+          "score": 1.0
+        }
+      ],
+      "prompt": "You are answering a question based on retrieved episodic memory.\n\nQuestion:\nWhat color is the sofa?\n\nRetrieved evidence:\n- frame_001: A kitchen with a wooden table and two chairs.\n- frame_003: A bedroom with a white bed and a wardrobe.\n- frame_006: A dining area with a round table and several chairs.\n\nPlease answer the question using only the evidence above.",
+      "predicted_answer": "Mock answer based on top evidence: A kitchen with a wooden table and two chairs."
+    },
+    {
+      "question_id": "q2",
+      "question": "Where is the mirror?",
+      "gold_answer": "bathroom",
+      "gold_frame_ids": [
+        "frame_004"
+      ],
+      "retrieved": [
+        {
+          "frame_id": "frame_001",
+          "caption": "A kitchen with a wooden table and two chairs.",
+          "score": 1.0
+        },
+        {
+          "frame_id": "frame_003",
+          "caption": "A bedroom with a white bed and a wardrobe.",
+          "score": 1.0
+        },
+        {
+          "frame_id": "frame_006",
+          "caption": "A dining area with a round table and several chairs.",
+          "score": 1.0
+        }
+      ],
+      "prompt": "You are answering a question based on retrieved episodic memory.\n\nQuestion:\nWhere is the mirror?\n\nRetrieved evidence:\n- frame_001: A kitchen with a wooden table and two chairs.\n- frame_003: A bedroom with a white bed and a wardrobe.\n- frame_006: A dining area with a round table and several chairs.\n\nPlease answer the question using only the evidence above.",
+      "predicted_answer": "Mock answer based on top evidence: A kitchen with a wooden table and two chairs."
+    }
+  ]
+}
