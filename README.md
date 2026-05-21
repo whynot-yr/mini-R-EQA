@@ -60,6 +60,15 @@ python scripts/run_pipeline.py --config configs/reqa_faithful_debug.yaml
 python scripts/run_pipeline.py --config configs/reqa_uniform_debug.yaml
 ```
 
+Export OpenEQA-compatible predictions:
+
+```bash
+python -m mini_eqa.exporters.openeqa_predictions \
+  --predictions reports/predictions_reqa_faithful_debug.json \
+  --output reports/openeqa_predictions_reqa_faithful_debug.json \
+  --include_debug_fields
+```
+
 ## Docs
 
 - Architecture and module roles:
@@ -70,6 +79,8 @@ python scripts/run_pipeline.py --config configs/reqa_uniform_debug.yaml
   [docs/reqa_alignment.md](/home/whynot/ai_research/r_net/mini_circle/docs/reqa_alignment.md)
 - Reproduction checklist:
   [docs/reproduction_checklist.md](/home/whynot/ai_research/r_net/mini_circle/docs/reproduction_checklist.md)
+- OpenEQA-compatible export notes:
+  [docs/openeqa_export.md](/home/whynot/ai_research/r_net/mini_circle/docs/openeqa_export.md)
 - Reusable experiment configs:
   [configs/](/home/whynot/ai_research/r_net/mini_circle/configs)
 
