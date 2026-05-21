@@ -1,0 +1,11 @@
+experiment_name: debug_toy_uniform
+episode_dir: data/sample_episode
+retriever: uniform
+runner: mock
+top_k: 3
+cache_dir: null
+prompt: mini_rag
+model: gpt-4o-mini
+max_output_tokens: 128
+output: reports/predictions_debug_toy_uniform.json
+limit: 2
