@@ -18,6 +18,7 @@ The project currently supports four retrieval modes:
 - `v0.5-EMBEDDING-CACHE`: offline caption embedding cache for dense retrieval
 - `v0.6-UNIFORM`: question-agnostic baseline plus lightweight retrieval registry
 - `v0.7-REAL-LLM`: real LLM runner plus prediction saving
+- `v0.9-OPENEQA-ADAPTER`: OpenEQA-style QA metadata adapter for small-subset experiments
 
 The project now supports both a mock answer path and a real LLM runner path for answer generation.
 
@@ -28,6 +29,8 @@ mini_eqa/
 ├── baselines/
 │   ├── rag.py
 │   └── tfidf_rag.py
+├── data_adapters/
+│   └── openeqa_adapter.py
 ├── preprocess/
 │   └── build_caption_embeddings.py
 ├── retrieval/
@@ -177,6 +180,16 @@ python -m mini_eqa.evaluation.evaluate_answers \
   --output reports/answer_eval_cached_sbert_mock_v0.8.json
 ```
 
+Convert an OpenEQA-style QA file into mini-R-EQA `questions.json`:
+
+```
+python -m mini_eqa.data_adapters.openeqa_adapter \
+  --qa_file path/to/open-eqa-v0.json \
+  --output_dir data/openeqa_subset \
+  --limit 10 \
+  --overwrite
+```
+
 Save example outputs:
 
 ```
@@ -192,6 +205,9 @@ Notes:
 - `uniform` ignores the question and acts as a simple baseline against question-aware retrieval methods.
 - `deepseek` turns retrieved evidence plus the prompt into a natural-language predicted answer.
 - `exact_match` is strict, `contains_gold` is useful for toy answers, and `token_f1` gives a simple lexical overlap score.
+- `v0.9` only adapts QA metadata. Real frame captioning is deferred to `v1.0`.
+- If a dataset does not provide `gold_frame_ids`, retrieval evidence evaluation is not applicable.
+- Answer generation and answer evaluation can still run as long as gold answers are present.
 
 ## Current Limitations
 
@@ -206,4 +222,4 @@ Notes:
 
 - Compare retrieval variants on a larger toy dataset or real episodic data.
 - Add answer-level evaluation comparing predicted answers with gold answers.
-- Add an OpenEQA data adapter so the pipeline can move from toy data to real EM-EQA samples.
+- Add real frame captioning so OpenEQA-style episodes can produce `captions.json`.
