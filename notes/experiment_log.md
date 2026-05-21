@@ -245,3 +245,29 @@ The adapter correctly generated a small subset `questions.json` with the expecte
 
 ### Next Step
 Add real frame captioning to convert episode frames into captions.json.
+
+## v1.0 Frame Captioning Pipeline
+
+### Goal
+Add the missing `frames -> captions.json` stage.
+
+### Motivation
+Previous versions assume captions are already available. R-EQA requires converting episode frames into textual captions before building caption embeddings and retrieval memory.
+
+### Changes
+- Added `captioning/caption_frames.py`.
+- Added captioning backend interface.
+- Added `filename_stub` backend for pipeline testing.
+- Documented future VLM captioner backends.
+
+### Commands
+
+```text
+python -m mini_eqa.captioning.caption_frames --frames_dir data/sample_frames --output data/generated_episode/captions.json --backend filename_stub --overwrite
+```
+
+### Observation
+The `filename_stub` backend is only for pipeline testing. It verifies frame discovery, caption file generation, and downstream format compatibility, but it does not reflect real caption quality.
+
+### Next Step
+Implement a real VLM captioning backend, such as Qwen-VL or BLIP/LLaVA, and run on a small OpenEQA episode subset with GPU.

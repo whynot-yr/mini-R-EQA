@@ -19,6 +19,7 @@ The project currently supports four retrieval modes:
 - `v0.6-UNIFORM`: question-agnostic baseline plus lightweight retrieval registry
 - `v0.7-REAL-LLM`: real LLM runner plus prediction saving
 - `v0.9-OPENEQA-ADAPTER`: OpenEQA-style QA metadata adapter for small-subset experiments
+- `v1.0-FRAME-CAPTIONING`: frames-to-captions pipeline with a lightweight stub backend
 
 The project now supports both a mock answer path and a real LLM runner path for answer generation.
 
@@ -29,6 +30,9 @@ mini_eqa/
 ├── baselines/
 │   ├── rag.py
 │   └── tfidf_rag.py
+├── captioning/
+│   ├── backends.py
+│   └── caption_frames.py
 ├── data_adapters/
 │   └── openeqa_adapter.py
 ├── preprocess/
@@ -190,6 +194,42 @@ python -m mini_eqa.data_adapters.openeqa_adapter \
   --overwrite
 ```
 
+Caption episode frames into `captions.json`:
+
+```
+python -m mini_eqa.captioning.caption_frames \
+  --frames_dir data/sample_frames \
+  --output data/generated_episode/captions.json \
+  --backend filename_stub \
+  --overwrite
+```
+
+Prepare `questions.json` for the generated episode:
+
+```text
+Place your question file at data/generated_episode/questions.json
+```
+
+Build caption embeddings for the generated episode:
+
+```
+python -m mini_eqa.preprocess.build_caption_embeddings \
+  --episode_dir data/generated_episode \
+  --model_name sentence-transformers/all-MiniLM-L6-v2 \
+  --overwrite
+```
+
+Run retrieval on the generated episode:
+
+```
+python -m mini_eqa.baselines.rag \
+  --episode_dir data/generated_episode \
+  --retriever cached_sbert \
+  --runner mock \
+  --question_id q1 \
+  --top_k 3
+```
+
 Save example outputs:
 
 ```
@@ -205,7 +245,9 @@ Notes:
 - `uniform` ignores the question and acts as a simple baseline against question-aware retrieval methods.
 - `deepseek` turns retrieved evidence plus the prompt into a natural-language predicted answer.
 - `exact_match` is strict, `contains_gold` is useful for toy answers, and `token_f1` gives a simple lexical overlap score.
-- `v0.9` only adapts QA metadata. Real frame captioning is deferred to `v1.0`.
+- `v0.9` only adapts QA metadata, while `v1.0` adds the frames-to-captions stage.
+- `filename_stub` only validates the file pipeline. It is not a real captioning model.
+- `qwen_vl` and `blip` are reserved backend names and currently raise a clear not-implemented error.
 - If a dataset does not provide `gold_frame_ids`, retrieval evidence evaluation is not applicable.
 - Answer generation and answer evaluation can still run as long as gold answers are present.
 
@@ -216,10 +258,11 @@ Notes:
 - Uniform retrieval does not use the question at all.
 - Top-k retrieval may include irrelevant captions when useful evidence is limited.
 - The current data is only a toy sample episode.
+- The v1.0 captioner backend is only a filename-based placeholder.
 - Real OpenEQA-style evaluation will eventually need semantic or LLM-based answer judging.
 
 ## Next Steps
 
 - Compare retrieval variants on a larger toy dataset or real episodic data.
 - Add answer-level evaluation comparing predicted answers with gold answers.
-- Add real frame captioning so OpenEQA-style episodes can produce `captions.json`.
+- Implement a real VLM captioning backend and run it on a small OpenEQA subset.
