@@ -29,7 +29,8 @@ def evaluate_one_question(
     if "gold_frame_ids" not in question_item:
         raise KeyError(
             f"Question {question_item.get('question_id')} does not have gold_frame_ids. "
-            "Please add gold_frame_ids before running retrieval evaluation."
+            "This dataset does not support retrieval evidence evaluation until "
+            "gold_frame_ids are added."
         )
 
     question_id = question_item["question_id"]

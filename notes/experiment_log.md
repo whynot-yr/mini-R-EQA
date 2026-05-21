@@ -220,3 +220,28 @@ python -m mini_eqa.evaluation.evaluate_answers --predictions reports/predictions
 
 ### Next Step
 Add an OpenEQA data adapter so the pipeline can move from toy data to real EM-EQA samples.
+
+## v0.9 OpenEQA Data Adapter
+
+### Goal
+Move from toy QA files toward OpenEQA-style QA metadata.
+
+### Motivation
+The previous pipeline works on toy data. To reproduce R-EQA, the next step is to read real OpenEQA-style question-answer files and convert them into the mini-R-EQA internal format.
+
+### Changes
+- Added `data_adapters/openeqa_adapter.py`.
+- Added toy OpenEQA-style JSON for adapter testing.
+- Confirmed prediction flow works without `gold_frame_ids` and added a clearer retrieval-evaluation error for such datasets.
+
+### Commands
+
+```text
+python -m mini_eqa.data_adapters.openeqa_adapter --qa_file data/toy_openeqa/open_eqa_toy.json --output_dir data/openeqa_subset_toy --limit 2 --overwrite
+```
+
+### Observation
+The adapter correctly generated a small subset `questions.json` with the expected `question_id`, `question`, `answer`, `episode_history`, `scene_id`, and `raw_item` fields, plus `adapter_meta.json` recording the input file and subset size.
+
+### Next Step
+Add real frame captioning to convert episode frames into captions.json.

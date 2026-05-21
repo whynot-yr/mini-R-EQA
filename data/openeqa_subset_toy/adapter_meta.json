@@ -1,0 +1,8 @@
+{
+  "qa_file": "data/toy_openeqa/open_eqa_toy.json",
+  "output_dir": "data/openeqa_subset_toy",
+  "episode_id": null,
+  "start": 0,
+  "limit": 2,
+  "num_questions": 2
+}
