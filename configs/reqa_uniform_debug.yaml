@@ -1,0 +1,16 @@
+experiment_name: reqa_uniform_debug
+mode: uniform
+episode_dir: data/sample_episode
+retriever: uniform
+runner: mock
+uniform_top_k: 10
+top_k: 10
+cache_dir: null
+embedding_model: null
+caption_backend: filename_stub
+prompt: mini_rag
+model: gpt-4o-mini
+max_output_tokens: 128
+output: reports/predictions_uniform_debug.json
+limit: 2
+evaluation_note: "Uniform baseline should ignore question."

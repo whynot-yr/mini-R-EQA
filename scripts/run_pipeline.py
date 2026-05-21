@@ -32,7 +32,6 @@ def load_config(config_path: Path) -> dict:
         "episode_dir",
         "retriever",
         "runner",
-        "top_k",
         "prompt",
         "model",
         "max_output_tokens",
@@ -47,6 +46,21 @@ def load_config(config_path: Path) -> dict:
     return data
 
 
+def resolve_top_k(config: dict) -> int:
+    if "top_k" in config and config["top_k"] is not None:
+        return config["top_k"]
+
+    mode = config.get("mode")
+    if mode == "reqa" and config.get("retrieval_top_k") is not None:
+        return config["retrieval_top_k"]
+    if mode == "uniform" and config.get("uniform_top_k") is not None:
+        return config["uniform_top_k"]
+
+    raise KeyError(
+        "Config must provide top_k, or mode-specific retrieval_top_k / uniform_top_k."
+    )
+
+
 def main() -> None:
     args = parse_args()
 
@@ -59,7 +73,7 @@ def main() -> None:
         episode_dir=config["episode_dir"],
         retriever=config["retriever"],
         runner=config["runner"],
-        top_k=config["top_k"],
+        top_k=resolve_top_k(config),
         cache_dir=config.get("cache_dir"),
         prompt_name=config["prompt"],
         model=config["model"],

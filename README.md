@@ -49,6 +49,17 @@ Run the batch pipeline from config:
 python scripts/run_pipeline.py --config configs/debug_toy_cached_sbert.yaml
 ```
 
+## R-EQA Faithful Debug Protocol
+
+- `configs/reqa_faithful_debug.yaml` uses `cached_sbert` top-3.
+- `configs/reqa_uniform_debug.yaml` uses `uniform` top-10.
+- These are debug configs on toy data, not final reproduction.
+
+```bash
+python scripts/run_pipeline.py --config configs/reqa_faithful_debug.yaml
+python scripts/run_pipeline.py --config configs/reqa_uniform_debug.yaml
+```
+
 ## Docs
 
 - Architecture and module roles:
@@ -57,6 +68,8 @@ python scripts/run_pipeline.py --config configs/debug_toy_cached_sbert.yaml
   [docs/data_schema.md](/home/whynot/ai_research/r_net/mini_circle/docs/data_schema.md)
 - R-EQA alignment status:
   [docs/reqa_alignment.md](/home/whynot/ai_research/r_net/mini_circle/docs/reqa_alignment.md)
+- Reproduction checklist:
+  [docs/reproduction_checklist.md](/home/whynot/ai_research/r_net/mini_circle/docs/reproduction_checklist.md)
 - Reusable experiment configs:
   [configs/](/home/whynot/ai_research/r_net/mini_circle/configs)
 
