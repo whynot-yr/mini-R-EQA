@@ -80,6 +80,18 @@ python scripts/prepare_openeqa_subset.py \
   --overwrite
 ```
 
+Reserved real-captioning command for `qwen_vl`:
+
+```bash
+python -m mini_eqa.captioning.caption_frames \
+  --frames_dir path/to/episode_frames \
+  --output data/openeqa_prepared/episode_x/captions.json \
+  --backend qwen_vl \
+  --model_name Qwen/Qwen2.5-VL-7B-Instruct \
+  --device cuda \
+  --overwrite
+```
+
 ## Docs
 
 - Architecture and module roles:
@@ -94,6 +106,8 @@ python scripts/prepare_openeqa_subset.py \
   [docs/openeqa_export.md](/home/whynot/ai_research/r_net/mini_circle/docs/openeqa_export.md)
 - OpenEQA small-subset directory convention:
   [docs/openeqa_subset.md](/home/whynot/ai_research/r_net/mini_circle/docs/openeqa_subset.md)
+- Real captioning notes:
+  [docs/real_captioning.md](/home/whynot/ai_research/r_net/mini_circle/docs/real_captioning.md)
 - Reusable experiment configs:
   [configs/](/home/whynot/ai_research/r_net/mini_circle/configs)
 

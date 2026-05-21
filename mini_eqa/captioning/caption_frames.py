@@ -18,6 +18,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--frames_dir", type=str, required=True)
     parser.add_argument("--output", type=str, required=True)
     parser.add_argument("--backend", type=str, default="filename_stub")
+    parser.add_argument("--model_name", type=str, default=None)
+    parser.add_argument("--device", type=str, default=None)
     parser.add_argument("--glob", type=str, default="*.png")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--limit", type=int, default=None)
@@ -81,7 +83,15 @@ def main() -> None:
             f"No images found in {frames_dir} matching glob pattern {args.glob!r}."
         )
 
-    captioner = get_captioner(args.backend)
+    try:
+        captioner = get_captioner(
+            args.backend,
+            model_name=args.model_name,
+            device=args.device,
+        )
+    except (ImportError, NotImplementedError, ValueError) as exc:
+        raise SystemExit(str(exc)) from exc
+
     captions = build_captions(frame_paths=frame_paths, captioner=captioner)
     save_json(captions, output_path)
 
@@ -90,6 +100,8 @@ def main() -> None:
     print("=" * 80)
     print(f"Frames dir: {frames_dir}")
     print(f"Backend: {args.backend}")
+    print(f"Model name: {args.model_name}")
+    print(f"Device: {args.device}")
     print(f"Num frames: {len(captions)}")
     print(f"Output: {output_path}")
 
