@@ -11,6 +11,9 @@
       "question_id": "q1",
       "question": "What color is the sofa?",
       "gold_answer": "gray",
+      "episode_history": null,
+      "scene_id": null,
+      "raw_item": null,
       "gold_frame_ids": [
         "frame_002",
         "frame_005"
@@ -39,6 +42,9 @@
       "question_id": "q2",
       "question": "Where is the mirror?",
       "gold_answer": "bathroom",
+      "episode_history": null,
+      "scene_id": null,
+      "raw_item": null,
       "gold_frame_ids": [
         "frame_004"
       ],
