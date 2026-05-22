@@ -1,8 +1,7 @@
+numpy
+scikit-learn
 sentence-transformers
 deepseek
 python-dotenv
 pyyaml
-transformers
-accelerate
-qwen-vl-utils
-pillow
+openai

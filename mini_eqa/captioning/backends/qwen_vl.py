@@ -91,6 +91,7 @@ class QwenVLCaptioner:
         device: str | None = None,
         torch_dtype: str = "auto",
         max_new_tokens: int = DEFAULT_MAX_NEW_TOKENS,
+        prompt: str | None = None,
     ) -> None:
         try:
             import torch
@@ -109,7 +110,7 @@ class QwenVLCaptioner:
         self.device = _resolve_device(torch, device)
         self.torch_dtype = torch_dtype
         self.max_new_tokens = max_new_tokens
-        self.prompt = DEFAULT_QWEN_VL_PROMPT
+        self.prompt = prompt or DEFAULT_QWEN_VL_PROMPT
         self._model, self._processor = _load_qwen_vl_components(
             model_name=self.model_name,
             device=self.device,

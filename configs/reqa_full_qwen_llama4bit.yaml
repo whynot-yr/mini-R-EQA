@@ -1,0 +1,13 @@
+experiment_name: reqa_full_qwen_llama4bit
+prepared_root: /data/mini_reqa_prepared/full
+retriever: cached_sbert
+runner: openai_compatible
+model: meta-llama/Llama-3.1-70B-Instruct
+base_url: http://localhost:8000/v1
+reqa_top_k: 3
+embedding_model: sentence-transformers/all-MiniLM-L6-v2
+caption_backend: qwen_vl
+caption_model: Qwen/Qwen2.5-VL-7B-Instruct
+output_dir: reports/partial_full_reqa
+limit_episodes: null
+limit_questions: null

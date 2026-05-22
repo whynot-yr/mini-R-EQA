@@ -1,0 +1,5 @@
+vllm
+bitsandbytes
+transformers
+accelerate
+openai

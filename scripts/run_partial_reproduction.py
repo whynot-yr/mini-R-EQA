@@ -30,6 +30,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt", type=str, default="mini_rag")
     parser.add_argument("--max_output_tokens", type=int, default=128)
     parser.add_argument("--embedding_model", type=str, default=DEFAULT_MODEL_NAME)
+    parser.add_argument("--base_url", type=str, default=None)
     return parser.parse_args()
 
 
@@ -139,6 +140,7 @@ def run_one_method(
     model: str,
     prompt: str,
     max_output_tokens: int,
+    base_url: str | None,
     limit_questions: int | None,
     output_dir: Path,
     cache_dir: Path | None,
@@ -152,6 +154,7 @@ def run_one_method(
         cache_dir=cache_dir,
         prompt_name=prompt,
         model=model,
+        base_url=base_url,
         max_output_tokens=max_output_tokens,
         output=predictions_path,
         limit=limit_questions,
@@ -181,7 +184,8 @@ def run_episode(
     max_output_tokens: int,
     limit_questions: int | None,
     embedding_model: str,
-) -> list[dict]:
+    base_url: str | None,
+) -> tuple[list[dict], dict]:
     episode_name = episode_dir.name
     questions_path = episode_dir / "questions.json"
     captions_path = episode_dir / "captions.json"
@@ -253,6 +257,7 @@ def run_episode(
             model=model,
             prompt=prompt,
             max_output_tokens=max_output_tokens,
+            base_url=base_url,
             limit_questions=limit_questions,
             output_dir=output_dir,
             cache_dir=cache_dir,
@@ -272,6 +277,7 @@ def run_episode(
         model=model,
         prompt=prompt,
         max_output_tokens=max_output_tokens,
+        base_url=base_url,
         limit_questions=limit_questions,
         output_dir=output_dir,
         cache_dir=None,
@@ -367,6 +373,7 @@ def main() -> None:
             max_output_tokens=args.max_output_tokens,
             limit_questions=args.limit_questions,
             embedding_model=args.embedding_model,
+            base_url=args.base_url,
         )
         summary_rows.extend(method_rows)
         episode_results.append(episode_result)
@@ -379,6 +386,7 @@ def main() -> None:
         "uniform_top_k": 10,
         "runner": args.runner,
         "model": args.model,
+        "base_url": args.base_url,
         "prepared_root": str(prepared_root),
         "num_episodes_requested": len(episode_dirs),
         "num_episodes_success": num_episodes_success,
@@ -403,6 +411,9 @@ def main() -> None:
     print("=" * 80)
     print(f"Prepared root: {prepared_root}")
     print(f"Output dir: {output_dir}")
+    print(f"Runner: {args.runner}")
+    print(f"Model: {args.model}")
+    print(f"Base URL: {args.base_url}")
     print(f"Num episodes: {len(episode_dirs)}")
     print(f"REQA top-k: 3")
     print(f"Uniform top-k: 10")

@@ -86,19 +86,24 @@ def run_answer_generation(
     prompt: str,
     model: str,
     max_output_tokens: int,
+    base_url: str | None = None,
 ) -> str:
     runner = get_runner(runner_name)
 
     if runner_name == "mock":
         return runner(question=question, retrieved=retrieved)
 
-    return runner(
-        question=question,
-        retrieved=retrieved,
-        prompt=prompt,
-        model=model,
-        max_output_tokens=max_output_tokens,
-    )
+    runner_kwargs = {
+        "question": question,
+        "retrieved": retrieved,
+        "prompt": prompt,
+        "model": model,
+        "max_output_tokens": max_output_tokens,
+    }
+    if runner_name in {"openai_compatible", "llama_local"} and base_url is not None:
+        runner_kwargs["base_url"] = base_url
+
+    return runner(**runner_kwargs)
 
 
 def parse_args() -> argparse.Namespace:
@@ -118,6 +123,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt", type=str, default="mini_rag")
     parser.add_argument("--cache_dir", type=str, default=None)
     parser.add_argument("--model", type=str, default="gpt-4o-mini")
+    parser.add_argument("--base_url", type=str, default=None)
     parser.add_argument("--max_output_tokens", type=int, default=128)
     return parser.parse_args()
 
@@ -160,6 +166,7 @@ def main() -> None:
         prompt=prompt,
         model=args.model,
         max_output_tokens=args.max_output_tokens,
+        base_url=args.base_url,
     )
 
     print_result(

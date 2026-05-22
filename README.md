@@ -9,6 +9,7 @@ It currently supports:
 - caption embedding preprocessing
 - retrieval with `tfidf`, `sbert`, `cached_sbert`, and `uniform`
 - answer generation with `mock` and `deepseek`
+- local OpenAI-compatible answer generation for Llama-style server inference
 - prediction report saving and lightweight evaluation
 
 ## Core Flow
@@ -92,6 +93,19 @@ python -m mini_eqa.captioning.caption_frames \
   --overwrite
 ```
 
+Local Llama / vLLM answer runner:
+
+```bash
+python -m mini_eqa.baselines.rag \
+  --retriever cached_sbert \
+  --runner openai_compatible \
+  --question_id q1 \
+  --top_k 3 \
+  --cache_dir data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2 \
+  --model meta-llama/Llama-3.1-70B-Instruct \
+  --base_url http://localhost:8000/v1
+```
+
 Run partial reproduction on prepared episodes:
 
 ```bash
@@ -170,6 +184,8 @@ python scripts/check_reproduction_status.py \
   [docs/openeqa_subset.md](/home/whynot/ai_research/r_net/mini_circle/docs/openeqa_subset.md)
 - Real captioning notes:
   [docs/real_captioning.md](/home/whynot/ai_research/r_net/mini_circle/docs/real_captioning.md)
+- Local Llama 4-bit runner:
+  [docs/llama_4bit_runner.md](/home/whynot/ai_research/r_net/mini_circle/docs/llama_4bit_runner.md)
 - Partial reproduction notes:
   [docs/partial_reproduction.md](/home/whynot/ai_research/r_net/mini_circle/docs/partial_reproduction.md)
 - Server reproduction workflow:

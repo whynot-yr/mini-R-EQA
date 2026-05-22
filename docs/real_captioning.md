@@ -2,7 +2,7 @@
 
 `filename_stub` only tests file flow. It does not inspect image content and should not be used for real experiments.
 
-`qwen_vl` is intended for real frame captioning and is the bridge toward the original R-EQA caption generation stage.
+`qwen_vl` is the real captioning backend for server reproduction and the bridge toward the original R-EQA caption generation stage.
 
 ## Practical Constraint
 
@@ -22,6 +22,6 @@ For smoke tests, start with `--limit 2`.
 
 ## Current State
 
-- `filename_stub`: working file-flow backend
+- `filename_stub`: smoke-test backend only
 - `qwen_vl`: real single-image captioning backend
 - recommended first test: one episode with `--limit 2`

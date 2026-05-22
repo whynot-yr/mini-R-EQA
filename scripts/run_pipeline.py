@@ -77,6 +77,7 @@ def main() -> None:
         cache_dir=config.get("cache_dir"),
         prompt_name=config["prompt"],
         model=config["model"],
+        base_url=config.get("base_url"),
         max_output_tokens=config["max_output_tokens"],
         output=config["output"],
         limit=config.get("limit"),
