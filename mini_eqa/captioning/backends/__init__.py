@@ -8,12 +8,19 @@ def get_captioner(
     name: str,
     model_name: str | None = None,
     device: str | None = None,
+    torch_dtype: str = "auto",
+    max_new_tokens: int = 128,
 ):
     if name == "filename_stub":
         return caption_with_filename_stub
 
     if name == "qwen_vl":
-        return QwenVLCaptioner(model_name=model_name, device=device)
+        return QwenVLCaptioner(
+            model_name=model_name or "Qwen/Qwen2.5-VL-7B-Instruct",
+            device=device,
+            torch_dtype=torch_dtype,
+            max_new_tokens=max_new_tokens,
+        )
 
     if name == "blip":
         raise NotImplementedError(

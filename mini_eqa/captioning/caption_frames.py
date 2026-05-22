@@ -20,6 +20,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--backend", type=str, default="filename_stub")
     parser.add_argument("--model_name", type=str, default=None)
     parser.add_argument("--device", type=str, default=None)
+    parser.add_argument("--torch_dtype", type=str, default="auto")
+    parser.add_argument("--max_new_tokens", type=int, default=128)
     parser.add_argument("--glob", type=str, default="*.png")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--limit", type=int, default=None)
@@ -88,8 +90,10 @@ def main() -> None:
             args.backend,
             model_name=args.model_name,
             device=args.device,
+            torch_dtype=args.torch_dtype,
+            max_new_tokens=args.max_new_tokens,
         )
-    except (ImportError, NotImplementedError, ValueError) as exc:
+    except (ImportError, NotImplementedError, ValueError, RuntimeError) as exc:
         raise SystemExit(str(exc)) from exc
 
     captions = build_captions(frame_paths=frame_paths, captioner=captioner)
@@ -102,6 +106,8 @@ def main() -> None:
     print(f"Backend: {args.backend}")
     print(f"Model name: {args.model_name}")
     print(f"Device: {args.device}")
+    print(f"Torch dtype: {args.torch_dtype}")
+    print(f"Max new tokens: {args.max_new_tokens}")
     print(f"Num frames: {len(captions)}")
     print(f"Output: {output_path}")
 
