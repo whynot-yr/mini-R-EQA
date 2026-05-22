@@ -1,0 +1,21 @@
+{
+  "prepared_root": "data/openeqa_prepared_toy",
+  "reports_root": "reports/partial_reproduction_toy",
+  "rows": [
+    {
+      "episode": "sample_episode",
+      "has_questions": true,
+      "has_episode_meta": true,
+      "frames_dir": null,
+      "has_captions": false,
+      "num_captions": 0,
+      "has_embeddings": false,
+      "has_reqa_predictions": false,
+      "has_uniform_predictions": false,
+      "has_reqa_eval": false,
+      "has_uniform_eval": false,
+      "status": "missing_captions",
+      "message": "captions.json is missing."
+    }
+  ]
+}

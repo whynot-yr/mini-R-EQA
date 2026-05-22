@@ -1,0 +1,37 @@
+{
+  "qa_file": "data/toy_openeqa/open_eqa_toy.json",
+  "frames_root": "data/sample_frames",
+  "num_checked": 2,
+  "num_valid": 0,
+  "num_missing_fields": 0,
+  "num_missing_frames_dir": 2,
+  "num_empty_frame_dirs": 0,
+  "items": [
+    {
+      "question_id": "toy_q1",
+      "question": "What color is the sofa?",
+      "episode_history": "sample_episode",
+      "answer": "gray",
+      "has_question": true,
+      "has_answer": true,
+      "has_episode_history": true,
+      "frames_dir": null,
+      "frame_count": 0,
+      "status": "missing_frames_dir",
+      "message": "Could not resolve frames directory for episode_history='sample_episode'. Expected path: data/sample_frames/sample_episode"
+    },
+    {
+      "question_id": "toy_q2",
+      "question": "Where is the mirror?",
+      "episode_history": "sample_episode",
+      "answer": "bathroom",
+      "has_question": true,
+      "has_answer": true,
+      "has_episode_history": true,
+      "frames_dir": null,
+      "frame_count": 0,
+      "status": "missing_frames_dir",
+      "message": "Could not resolve frames directory for episode_history='sample_episode'. Expected path: data/sample_frames/sample_episode"
+    }
+  ]
+}

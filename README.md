@@ -104,6 +104,32 @@ python scripts/run_partial_reproduction.py \
   --limit_questions 2
 ```
 
+Validate and batch-process prepared episodes:
+
+```bash
+python scripts/validate_openeqa_data.py \
+  --qa_file data/toy_openeqa/open_eqa_toy.json \
+  --frames_root data/sample_frames \
+  --limit 2 \
+  --output reports/validation_toy.json
+
+python scripts/caption_prepared_episodes.py \
+  --prepared_root data/openeqa_prepared_toy \
+  --backend filename_stub \
+  --limit_episodes 1 \
+  --dry_run
+
+python scripts/build_embeddings_for_prepared.py \
+  --prepared_root data/openeqa_prepared_toy \
+  --limit_episodes 1 \
+  --dry_run
+
+python scripts/check_reproduction_status.py \
+  --prepared_root data/openeqa_prepared_toy \
+  --reports_root reports/partial_reproduction_toy \
+  --output reports/status_toy.json
+```
+
 ## Docs
 
 - Architecture and module roles:
@@ -122,6 +148,8 @@ python scripts/run_partial_reproduction.py \
   [docs/real_captioning.md](/home/whynot/ai_research/r_net/mini_circle/docs/real_captioning.md)
 - Partial reproduction notes:
   [docs/partial_reproduction.md](/home/whynot/ai_research/r_net/mini_circle/docs/partial_reproduction.md)
+- Server reproduction workflow:
+  [docs/server_reproduction_workflow.md](/home/whynot/ai_research/r_net/mini_circle/docs/server_reproduction_workflow.md)
 - Reusable experiment configs:
   [configs/](/home/whynot/ai_research/r_net/mini_circle/configs)
 
