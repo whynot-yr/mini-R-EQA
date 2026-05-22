@@ -1,0 +1,27 @@
+{
+  "prepared_root": "data/openeqa_prepared_toy",
+  "output_dir": "reports/partial_reproduction_toy",
+  "num_episodes": 1,
+  "rows": [
+    {
+      "episode": "sample_episode",
+      "method": "reqa",
+      "status": "error",
+      "num_questions": 0,
+      "metrics": null,
+      "predictions_path": null,
+      "answer_eval_path": null,
+      "message": "Missing captions.json. Run captioning first: python -m mini_eqa.captioning.caption_frames --frames_dir path/to/episode_frames --output data/openeqa_prepared_toy/sample_episode/captions.json --backend filename_stub --overwrite"
+    },
+    {
+      "episode": "sample_episode",
+      "method": "uniform",
+      "status": "error",
+      "num_questions": 0,
+      "metrics": null,
+      "predictions_path": null,
+      "answer_eval_path": null,
+      "message": "Missing captions.json. Run captioning first: python -m mini_eqa.captioning.caption_frames --frames_dir path/to/episode_frames --output data/openeqa_prepared_toy/sample_episode/captions.json --backend filename_stub --overwrite"
+    }
+  ]
+}

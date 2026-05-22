@@ -92,6 +92,18 @@ python -m mini_eqa.captioning.caption_frames \
   --overwrite
 ```
 
+Run partial reproduction on prepared episodes:
+
+```bash
+python scripts/run_partial_reproduction.py \
+  --prepared_root data/openeqa_prepared_toy \
+  --runner mock \
+  --model gpt-4o-mini \
+  --output_dir reports/partial_reproduction_toy \
+  --limit_episodes 1 \
+  --limit_questions 2
+```
+
 ## Docs
 
 - Architecture and module roles:
@@ -108,6 +120,8 @@ python -m mini_eqa.captioning.caption_frames \
   [docs/openeqa_subset.md](/home/whynot/ai_research/r_net/mini_circle/docs/openeqa_subset.md)
 - Real captioning notes:
   [docs/real_captioning.md](/home/whynot/ai_research/r_net/mini_circle/docs/real_captioning.md)
+- Partial reproduction notes:
+  [docs/partial_reproduction.md](/home/whynot/ai_research/r_net/mini_circle/docs/partial_reproduction.md)
 - Reusable experiment configs:
   [configs/](/home/whynot/ai_research/r_net/mini_circle/configs)
 
