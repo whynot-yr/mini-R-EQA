@@ -1,0 +1,14 @@
+{
+  "internal_predictions": "reports/predictions_reqa_faithful_debug.json",
+  "exported_predictions": "reports/openeqa_predictions_reqa_faithful_debug_wrapper.json",
+  "openeqa_eval_script": "/nonexistent/evaluate-predictions.py",
+  "include_debug_fields": true,
+  "dry_run": true,
+  "num_exported_items": 2,
+  "status": "exported",
+  "message": "Dry run: exported predictions only; official evaluator not called.",
+  "command": null,
+  "returncode": null,
+  "stdout": null,
+  "stderr": null
+}

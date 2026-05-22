@@ -96,6 +96,39 @@ def evaluate_predictions_report(predictions_path: Path, output_path: Path) -> di
     return eval_report
 
 
+def build_episode_result(
+    *,
+    episode_name: str,
+    episode_dir: Path,
+    num_questions: int,
+    has_captions: bool,
+    has_embeddings: bool,
+    reqa_predictions_path: str | None,
+    uniform_predictions_path: str | None,
+    reqa_eval_path: str | None,
+    uniform_eval_path: str | None,
+    status: str,
+    error_message: str | None,
+    reqa_metrics: dict | None,
+    uniform_metrics: dict | None,
+) -> dict:
+    return {
+        "episode_name": episode_name,
+        "episode_dir": str(episode_dir),
+        "num_questions": num_questions,
+        "has_captions": has_captions,
+        "has_embeddings": has_embeddings,
+        "reqa_predictions_path": reqa_predictions_path,
+        "uniform_predictions_path": uniform_predictions_path,
+        "reqa_eval_path": reqa_eval_path,
+        "uniform_eval_path": uniform_eval_path,
+        "reqa_metrics": reqa_metrics,
+        "uniform_metrics": uniform_metrics,
+        "status": status,
+        "error_message": error_message,
+    }
+
+
 def run_one_method(
     episode_dir: Path,
     episode_name: str,
@@ -152,114 +185,116 @@ def run_episode(
     episode_name = episode_dir.name
     questions_path = episode_dir / "questions.json"
     captions_path = episode_dir / "captions.json"
+    num_questions = 0
+    if questions_path.exists():
+        try:
+            num_questions = len(load_json(questions_path))
+            if limit_questions is not None:
+                num_questions = min(num_questions, limit_questions)
+        except Exception:
+            num_questions = 0
 
     if not questions_path.exists():
-        return [
-            {
-                "episode": episode_name,
-                "method": "reqa",
-                "status": "error",
-                "num_questions": 0,
-                "metrics": None,
-                "predictions_path": None,
-                "answer_eval_path": None,
-                "message": f"Missing questions.json in {episode_dir}",
-            },
-            {
-                "episode": episode_name,
-                "method": "uniform",
-                "status": "error",
-                "num_questions": 0,
-                "metrics": None,
-                "predictions_path": None,
-                "answer_eval_path": None,
-                "message": f"Missing questions.json in {episode_dir}",
-            },
-        ]
+        return [], build_episode_result(
+            episode_name=episode_name,
+            episode_dir=episode_dir,
+            num_questions=0,
+            has_captions=False,
+            has_embeddings=False,
+            reqa_predictions_path=None,
+            uniform_predictions_path=None,
+            reqa_eval_path=None,
+            uniform_eval_path=None,
+            status="error",
+            error_message=f"Missing questions.json in {episode_dir}",
+            reqa_metrics=None,
+            uniform_metrics=None,
+        )
 
     if not captions_path.exists():
         message = build_missing_captions_message(episode_dir)
-        return [
-            {
-                "episode": episode_name,
-                "method": "reqa",
-                "status": "error",
-                "num_questions": 0,
-                "metrics": None,
-                "predictions_path": None,
-                "answer_eval_path": None,
-                "message": message,
-            },
-            {
-                "episode": episode_name,
-                "method": "uniform",
-                "status": "error",
-                "num_questions": 0,
-                "metrics": None,
-                "predictions_path": None,
-                "answer_eval_path": None,
-                "message": message,
-            },
-        ]
+        return [], build_episode_result(
+            episode_name=episode_name,
+            episode_dir=episode_dir,
+            num_questions=num_questions,
+            has_captions=False,
+            has_embeddings=False,
+            reqa_predictions_path=None,
+            uniform_predictions_path=None,
+            reqa_eval_path=None,
+            uniform_eval_path=None,
+            status="error",
+            error_message=message,
+            reqa_metrics=None,
+            uniform_metrics=None,
+        )
 
     cache_dir = resolve_output_dir(episode_dir, embedding_model, None)
     embeddings_path = cache_dir / "caption_embeddings.npy"
     embedding_meta_path = cache_dir / "caption_embedding_meta.json"
 
     reqa_message = None
-    if not embeddings_path.exists() or not embedding_meta_path.exists():
+    has_embeddings = embeddings_path.exists() and embedding_meta_path.exists()
+    if not has_embeddings:
         reqa_message = build_missing_embeddings_message(episode_dir)
 
-    results = []
+    rows = []
+    reqa_predictions_path = None
+    reqa_eval_path = None
+    reqa_metrics = None
     if reqa_message is None:
-        results.append(
-            run_one_method(
-                episode_dir=episode_dir,
-                episode_name=episode_name,
-                method="reqa",
-                retriever="cached_sbert",
-                top_k=3,
-                runner=runner,
-                model=model,
-                prompt=prompt,
-                max_output_tokens=max_output_tokens,
-                limit_questions=limit_questions,
-                output_dir=output_dir,
-                cache_dir=cache_dir,
-            )
-        )
-    else:
-        results.append(
-            {
-                "episode": episode_name,
-                "method": "reqa",
-                "status": "error",
-                "num_questions": 0,
-                "metrics": None,
-                "predictions_path": None,
-                "answer_eval_path": None,
-                "message": reqa_message,
-            }
-        )
-
-    results.append(
-        run_one_method(
+        reqa_row = run_one_method(
             episode_dir=episode_dir,
             episode_name=episode_name,
-            method="uniform",
-            retriever="uniform",
-            top_k=10,
+            method="reqa",
+            retriever="cached_sbert",
+            top_k=3,
             runner=runner,
             model=model,
             prompt=prompt,
             max_output_tokens=max_output_tokens,
             limit_questions=limit_questions,
             output_dir=output_dir,
-            cache_dir=None,
+            cache_dir=cache_dir,
         )
-    )
+        rows.append(reqa_row)
+        reqa_predictions_path = reqa_row["predictions_path"]
+        reqa_eval_path = reqa_row["answer_eval_path"]
+        reqa_metrics = reqa_row["metrics"]
 
-    return results
+    uniform_row = run_one_method(
+        episode_dir=episode_dir,
+        episode_name=episode_name,
+        method="uniform",
+        retriever="uniform",
+        top_k=10,
+        runner=runner,
+        model=model,
+        prompt=prompt,
+        max_output_tokens=max_output_tokens,
+        limit_questions=limit_questions,
+        output_dir=output_dir,
+        cache_dir=None,
+    )
+    rows.append(uniform_row)
+
+    episode_status = "ok" if reqa_message is None else "partial"
+    error_message = reqa_message
+    return rows, build_episode_result(
+        episode_name=episode_name,
+        episode_dir=episode_dir,
+        num_questions=num_questions,
+        has_captions=True,
+        has_embeddings=has_embeddings,
+        reqa_predictions_path=reqa_predictions_path,
+        uniform_predictions_path=uniform_row["predictions_path"],
+        reqa_eval_path=reqa_eval_path,
+        uniform_eval_path=uniform_row["answer_eval_path"],
+        status=episode_status,
+        error_message=error_message,
+        reqa_metrics=reqa_metrics,
+        uniform_metrics=uniform_row["metrics"],
+    )
 
 
 def make_summary_markdown(summary_rows: list[dict]) -> str:
@@ -286,6 +321,26 @@ def make_summary_markdown(summary_rows: list[dict]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def make_episode_summary_markdown(episodes: list[dict]) -> str:
+    lines = [
+        "# Partial Reproduction Episode Summary",
+        "",
+        "Simple answer metrics are sanity checks, not official OpenEQA LLM-Match.",
+        "",
+        "| episode | status | num_questions | has_captions | has_embeddings | reqa_predictions_path | uniform_predictions_path | error_message |",
+        "|---|---|---:|---|---|---|---|---|",
+    ]
+    for item in episodes:
+        lines.append(
+            f"| {item['episode_name']} | {item['status']} | {item['num_questions']} | "
+            f"{item['has_captions']} | {item['has_embeddings']} | "
+            f"{item['reqa_predictions_path'] or 'n/a'} | "
+            f"{item['uniform_predictions_path'] or 'n/a'} | "
+            f"{item['error_message'] or 'n/a'} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
 def main() -> None:
     args = parse_args()
 
@@ -301,30 +356,47 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     summary_rows = []
+    episode_results = []
     for episode_dir in episode_dirs:
-        summary_rows.extend(
-            run_episode(
-                episode_dir=episode_dir,
-                output_dir=output_dir,
-                runner=args.runner,
-                model=args.model,
-                prompt=args.prompt,
-                max_output_tokens=args.max_output_tokens,
-                limit_questions=args.limit_questions,
-                embedding_model=args.embedding_model,
-            )
+        method_rows, episode_result = run_episode(
+            episode_dir=episode_dir,
+            output_dir=output_dir,
+            runner=args.runner,
+            model=args.model,
+            prompt=args.prompt,
+            max_output_tokens=args.max_output_tokens,
+            limit_questions=args.limit_questions,
+            embedding_model=args.embedding_model,
         )
+        summary_rows.extend(method_rows)
+        episode_results.append(episode_result)
 
+    num_episodes_success = sum(1 for item in episode_results if item["status"] == "ok")
+    num_episodes_failed = sum(1 for item in episode_results if item["status"] != "ok")
     summary = {
+        "protocol": "partial_reqa_reproduction",
+        "reqa_top_k": 3,
+        "uniform_top_k": 10,
+        "runner": args.runner,
+        "model": args.model,
         "prepared_root": str(prepared_root),
+        "num_episodes_requested": len(episode_dirs),
+        "num_episodes_success": num_episodes_success,
+        "num_episodes_failed": num_episodes_failed,
         "output_dir": str(output_dir),
         "num_episodes": len(episode_dirs),
+        "episodes": episode_results,
         "rows": summary_rows,
     }
     summary_json_path = output_dir / "summary.json"
     summary_md_path = output_dir / "summary.md"
     save_json(summary, summary_json_path)
-    summary_md_path.write_text(make_summary_markdown(summary_rows), encoding="utf-8")
+    summary_md_path.write_text(
+        make_summary_markdown(summary_rows)
+        + "\n"
+        + make_episode_summary_markdown(episode_results),
+        encoding="utf-8",
+    )
 
     print("=" * 80)
     print("Partial R-EQA Reproduction")
@@ -332,15 +404,19 @@ def main() -> None:
     print(f"Prepared root: {prepared_root}")
     print(f"Output dir: {output_dir}")
     print(f"Num episodes: {len(episode_dirs)}")
+    print(f"REQA top-k: 3")
+    print(f"Uniform top-k: 10")
+    print(f"Episodes success: {num_episodes_success}")
+    print(f"Episodes failed: {num_episodes_failed}")
     print(f"Saved summary to: {summary_json_path}")
     print(f"Saved summary to: {summary_md_path}")
-    for row in summary_rows:
+    for row in episode_results:
         print("-" * 80)
-        print(f"Episode: {row['episode']}")
-        print(f"Method: {row['method']}")
+        print(f"Episode: {row['episode_name']}")
         print(f"Status: {row['status']}")
-        print(f"Message: {row.get('message')}")
-        print(f"Predictions path: {row.get('predictions_path')}")
+        print(f"Message: {row.get('error_message')}")
+        print(f"REQA predictions: {row.get('reqa_predictions_path')}")
+        print(f"Uniform predictions: {row.get('uniform_predictions_path')}")
 
 
 if __name__ == "__main__":

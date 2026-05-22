@@ -104,6 +104,30 @@ python scripts/run_partial_reproduction.py \
   --limit_questions 2
 ```
 
+Official evaluation workflow:
+
+```bash
+python scripts/run_partial_reproduction.py \
+  --prepared_root data/openeqa_prepared_toy \
+  --runner mock \
+  --model gpt-4o-mini \
+  --output_dir reports/partial_reproduction_toy \
+  --limit_episodes 1 \
+  --limit_questions 2
+
+python -m mini_eqa.exporters.openeqa_predictions \
+  --predictions reports/predictions_reqa_faithful_debug.json \
+  --output reports/openeqa_predictions_reqa_faithful_debug.json \
+  --include_debug_fields
+
+python scripts/evaluate_with_openeqa.py \
+  --internal_predictions reports/predictions_reqa_faithful_debug.json \
+  --exported_predictions reports/openeqa_predictions_reqa_faithful_debug_wrapper.json \
+  --openeqa_eval_script /path/to/evaluate-predictions.py \
+  --output reports/openeqa_eval_wrapper_log.json \
+  --include_debug_fields
+```
+
 Validate and batch-process prepared episodes:
 
 ```bash
@@ -150,6 +174,8 @@ python scripts/check_reproduction_status.py \
   [docs/partial_reproduction.md](/home/whynot/ai_research/r_net/mini_circle/docs/partial_reproduction.md)
 - Server reproduction workflow:
   [docs/server_reproduction_workflow.md](/home/whynot/ai_research/r_net/mini_circle/docs/server_reproduction_workflow.md)
+- Official evaluation notes:
+  [docs/official_evaluation.md](/home/whynot/ai_research/r_net/mini_circle/docs/official_evaluation.md)
 - Reusable experiment configs:
   [configs/](/home/whynot/ai_research/r_net/mini_circle/configs)
 
