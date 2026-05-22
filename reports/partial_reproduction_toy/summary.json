@@ -1,27 +1,31 @@
 {
+  "protocol": "partial_reqa_reproduction",
+  "reqa_top_k": 3,
+  "uniform_top_k": 10,
+  "runner": "mock",
+  "model": "gpt-4o-mini",
   "prepared_root": "data/openeqa_prepared_toy",
+  "num_episodes_requested": 1,
+  "num_episodes_success": 0,
+  "num_episodes_failed": 1,
   "output_dir": "reports/partial_reproduction_toy",
   "num_episodes": 1,
-  "rows": [
+  "episodes": [
     {
-      "episode": "sample_episode",
-      "method": "reqa",
+      "episode_name": "sample_episode",
+      "episode_dir": "data/openeqa_prepared_toy/sample_episode",
+      "num_questions": 2,
+      "has_captions": false,
+      "has_embeddings": false,
+      "reqa_predictions_path": null,
+      "uniform_predictions_path": null,
+      "reqa_eval_path": null,
+      "uniform_eval_path": null,
+      "reqa_metrics": null,
+      "uniform_metrics": null,
       "status": "error",
-      "num_questions": 0,
-      "metrics": null,
-      "predictions_path": null,
-      "answer_eval_path": null,
-      "message": "Missing captions.json. Run captioning first: python -m mini_eqa.captioning.caption_frames --frames_dir path/to/episode_frames --output data/openeqa_prepared_toy/sample_episode/captions.json --backend filename_stub --overwrite"
-    },
-    {
-      "episode": "sample_episode",
-      "method": "uniform",
-      "status": "error",
-      "num_questions": 0,
-      "metrics": null,
-      "predictions_path": null,
-      "answer_eval_path": null,
-      "message": "Missing captions.json. Run captioning first: python -m mini_eqa.captioning.caption_frames --frames_dir path/to/episode_frames --output data/openeqa_prepared_toy/sample_episode/captions.json --backend filename_stub --overwrite"
+      "error_message": "Missing captions.json. Run captioning first: python -m mini_eqa.captioning.caption_frames --frames_dir path/to/episode_frames --output data/openeqa_prepared_toy/sample_episode/captions.json --backend filename_stub --overwrite"
     }
-  ]
+  ],
+  "rows": []
 }

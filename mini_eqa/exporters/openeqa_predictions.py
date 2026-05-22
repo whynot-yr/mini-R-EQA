@@ -22,11 +22,23 @@ def build_export_item(
     report: dict[str, Any],
     include_debug_fields: bool,
 ) -> dict[str, Any]:
+    question_id = item.get("question_id")
+    if not question_id:
+        raise KeyError("Prediction item is missing question_id.")
+
+    answer = item.get("gold_answer")
+    if answer is None:
+        answer = item.get("answer")
+
+    prediction = item.get("predicted_answer")
+    if prediction is None:
+        prediction = item.get("prediction")
+
     export_item = {
-        "question_id": item.get("question_id"),
+        "question_id": question_id,
         "question": item.get("question"),
-        "answer": item.get("gold_answer"),
-        "prediction": item.get("predicted_answer"),
+        "answer": answer,
+        "prediction": prediction,
         "episode_history": item.get("episode_history", report.get("episode_history")),
         "scene_id": item.get("scene_id"),
     }
@@ -64,14 +76,15 @@ def export_predictions(
             f"Prediction report {predictions_path} has a non-list predictions field."
         )
 
-    exported_items = [
-        build_export_item(
-            item=item,
-            report=report,
-            include_debug_fields=include_debug_fields,
+    exported_items = []
+    for item in prediction_items:
+        exported_items.append(
+            build_export_item(
+                item=item,
+                report=report,
+                include_debug_fields=include_debug_fields,
+            )
         )
-        for item in prediction_items
-    ]
 
     save_json(exported_items, output_path)
     return exported_items
