@@ -4,6 +4,7 @@
   "runner": "mock",
   "top_k": 3,
   "model": "gpt-4o-mini",
+  "base_url": null,
   "cache_dir": "data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2",
   "num_questions": 2,
   "predictions": [

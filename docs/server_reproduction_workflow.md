@@ -2,6 +2,8 @@
 
 This document outlines the intended batch workflow for running mini-R-EQA reproduction experiments on a server.
 
+`filename_stub` is only for smoke tests. Real server reproduction should use `qwen_vl` for caption generation.
+
 ## Steps
 
 1. validate OpenEQA data
@@ -10,6 +12,8 @@ This document outlines the intended batch workflow for running mini-R-EQA reprod
 4. batch build embeddings
 5. check status
 6. run partial reproduction
+7. export predictions
+8. run official OpenEQA evaluation
 
 ## Recommended Command Flow
 
@@ -63,7 +67,26 @@ python scripts/check_reproduction_status.py \
 ```bash
 python scripts/run_partial_reproduction.py \
   --prepared_root /data/mini_reqa_prepared/small \
-  --runner mock \
-  --model gpt-4o-mini \
+  --runner openai_compatible \
+  --model meta-llama/Llama-3.1-70B-Instruct \
+  --base_url http://localhost:8000/v1 \
   --output_dir reports/partial_small
+```
+
+### 7. Export predictions
+
+```bash
+python -m mini_eqa.exporters.openeqa_predictions \
+  --predictions reports/partial_small/predictions_reqa_episode_x.json \
+  --output reports/partial_small/openeqa_predictions_reqa_episode_x.json
+```
+
+### 8. Run official OpenEQA evaluation
+
+```bash
+python scripts/evaluate_with_openeqa.py \
+  --internal_predictions reports/partial_small/predictions_reqa_episode_x.json \
+  --exported_predictions reports/partial_small/openeqa_predictions_reqa_episode_x.json \
+  --openeqa_eval_script /path/to/evaluate-predictions.py \
+  --output reports/partial_small/openeqa_eval_reqa_episode_x.json
 ```

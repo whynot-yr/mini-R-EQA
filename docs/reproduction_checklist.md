@@ -31,7 +31,7 @@
 ## Current Status
 
 - toy pipeline complete
-- filename_stub only
-- no real VLM captioning yet
-- no official OpenEQA prediction exporter yet
+- filename_stub for smoke test, qwen_vl for real captioning
+- official OpenEQA export and wrapper exist
 - simple answer metrics only
+- final OpenEQA LLM-Match still depends on the real official evaluator

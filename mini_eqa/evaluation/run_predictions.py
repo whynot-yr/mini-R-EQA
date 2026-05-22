@@ -31,6 +31,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cache_dir", type=str, default=None)
     parser.add_argument("--prompt", type=str, default="mini_rag")
     parser.add_argument("--model", type=str, default="gpt-4o-mini")
+    parser.add_argument("--base_url", type=str, default=None)
     parser.add_argument("--max_output_tokens", type=int, default=128)
     parser.add_argument("--output", type=str, default="reports/predictions_v0.7.json")
     parser.add_argument("--limit", type=int, default=None)
@@ -46,6 +47,7 @@ def run_prediction_pipeline(
     cache_dir: str | Path | None,
     prompt_name: str,
     model: str,
+    base_url: str | None,
     max_output_tokens: int,
     output: str | Path,
     limit: int | None = None,
@@ -83,6 +85,7 @@ def run_prediction_pipeline(
             retrieved=retrieved,
             prompt=prompt,
             model=model,
+            base_url=base_url,
             max_output_tokens=max_output_tokens,
         )
         predictions.append(
@@ -106,6 +109,7 @@ def run_prediction_pipeline(
         "runner": runner,
         "top_k": top_k,
         "model": model,
+        "base_url": base_url,
         "cache_dir": str(resolved_cache_dir) if resolved_cache_dir is not None else None,
         "num_questions": len(predictions),
         "predictions": predictions,
@@ -125,6 +129,7 @@ def print_prediction_summary(report: dict, output: str | Path) -> None:
     print(f"Retriever: {report['retriever']}")
     print(f"Runner: {report['runner']}")
     print(f"Model: {report['model']}")
+    print(f"Base URL: {report.get('base_url')}")
     print(f"Top-K: {report['top_k']}")
     print(f"Number of questions: {report['num_questions']}")
     print(f"Saved report to: {output}")
@@ -140,6 +145,7 @@ def main() -> None:
         cache_dir=args.cache_dir,
         prompt_name=args.prompt,
         model=args.model,
+        base_url=args.base_url,
         max_output_tokens=args.max_output_tokens,
         output=args.output,
         limit=args.limit,
