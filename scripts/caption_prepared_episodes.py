@@ -28,6 +28,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", type=str, default=None)
     parser.add_argument("--torch_dtype", type=str, default="auto")
     parser.add_argument("--max_new_tokens", type=int, default=128)
+    parser.add_argument("--prompt", type=str, default=None)
+    parser.add_argument("--attn_implementation", type=str, default=None)
+    parser.add_argument("--device_map", type=str, default=None)
     parser.add_argument("--limit_episodes", type=int, default=None)
     parser.add_argument("--start_index", type=int, default=0)
     parser.add_argument("--end_index", type=int, default=None)
@@ -62,6 +65,9 @@ def main() -> None:
             device=args.device,
             torch_dtype=args.torch_dtype,
             max_new_tokens=args.max_new_tokens,
+            prompt=args.prompt,
+            attn_implementation=args.attn_implementation,
+            device_map=args.device_map,
         )
 
     rows = []

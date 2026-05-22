@@ -52,6 +52,8 @@ def _load_qwen_vl_components(
     model_name: str,
     device: str,
     torch_dtype: str,
+    attn_implementation: str | None,
+    device_map: str | None,
 ):
     try:
         import torch
@@ -62,9 +64,15 @@ def _load_qwen_vl_components(
     resolved_dtype = _resolve_torch_dtype(torch, torch_dtype)
 
     try:
+        model_kwargs = {"torch_dtype": resolved_dtype}
+        if attn_implementation is not None:
+            model_kwargs["attn_implementation"] = attn_implementation
+        if device_map is not None:
+            model_kwargs["device_map"] = device_map
+
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             model_name,
-            torch_dtype=resolved_dtype,
+            **model_kwargs,
         )
         processor = AutoProcessor.from_pretrained(model_name)
     except Exception as exc:
@@ -73,12 +81,13 @@ def _load_qwen_vl_components(
             "Ensure the model is accessible via the HuggingFace cache or network."
         ) from exc
 
-    try:
-        model = model.to(device)
-    except Exception as exc:
-        raise RuntimeError(
-            f"Failed to move Qwen-VL model to device={device!r}."
-        ) from exc
+    if device_map is None:
+        try:
+            model = model.to(device)
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to move Qwen-VL model to device={device!r}."
+            ) from exc
 
     model.eval()
     return model, processor
@@ -92,6 +101,8 @@ class QwenVLCaptioner:
         torch_dtype: str = "auto",
         max_new_tokens: int = DEFAULT_MAX_NEW_TOKENS,
         prompt: str | None = None,
+        attn_implementation: str | None = None,
+        device_map: str | None = None,
     ) -> None:
         try:
             import torch
@@ -111,10 +122,14 @@ class QwenVLCaptioner:
         self.torch_dtype = torch_dtype
         self.max_new_tokens = max_new_tokens
         self.prompt = prompt or DEFAULT_QWEN_VL_PROMPT
+        self.attn_implementation = attn_implementation
+        self.device_map = device_map
         self._model, self._processor = _load_qwen_vl_components(
             model_name=self.model_name,
             device=self.device,
             torch_dtype=self.torch_dtype,
+            attn_implementation=self.attn_implementation,
+            device_map=self.device_map,
         )
 
     def __call__(self, image_path: str | Path) -> str:
