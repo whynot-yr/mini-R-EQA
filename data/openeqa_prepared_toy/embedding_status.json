@@ -1,0 +1,15 @@
+{
+  "prepared_root": "data/openeqa_prepared_toy",
+  "model_name": "sentence-transformers/all-MiniLM-L6-v2",
+  "dry_run": true,
+  "rows": [
+    {
+      "episode": "sample_episode",
+      "episode_dir": "data/openeqa_prepared_toy/sample_episode",
+      "embeddings_path": "data/openeqa_prepared_toy/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2/caption_embeddings.npy",
+      "metadata_path": "data/openeqa_prepared_toy/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2/caption_embedding_meta.json",
+      "status": "missing_captions",
+      "message": "captions.json is missing."
+    }
+  ]
+}
