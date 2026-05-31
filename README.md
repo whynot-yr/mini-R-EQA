@@ -48,6 +48,18 @@ python3 scripts/generate_candidate_reward_dataset.py \
   --dry_run
 ```
 
+Train the scorer on the generated dataset:
+
+```bash
+python3 scripts/train_scorer.py \
+  --dataset_path reports/candidate_reward_dataset.jsonl \
+  --episode_dir data/sample_episode \
+  --output reports/scorer.pt \
+  --metrics_output reports/scorer_train_metrics.json \
+  --epochs 2 \
+  --dry_run
+```
+
 ## Core Flow
 
 ```text
