@@ -1,0 +1,10 @@
+{
+  "epochs": 2,
+  "learning_rate": 0.05,
+  "num_examples": 8,
+  "train_loss_history": [
+    0.6066356379719178,
+    0.4492465787578754
+  ],
+  "final_train_loss": 0.4492465787578754
+}

@@ -60,6 +60,29 @@ python3 scripts/train_scorer.py \
   --dry_run
 ```
 
+Train the selector from frame-level pseudo labels:
+
+```bash
+python3 scripts/train_selector.py \
+  --dataset_path reports/candidate_reward_dataset.jsonl \
+  --episode_dir data/sample_episode \
+  --output reports/selector.pt \
+  --metrics_output reports/selector_train_metrics.json \
+  --summary_output reports/selector_pseudo_label_summary.json \
+  --epochs 2 \
+  --dry_run
+```
+
+Smoke-test selector top-k inference:
+
+```bash
+python3 scripts/selector_inference_smoke_test.py \
+  --checkpoint reports/selector.pt \
+  --episode_dir data/sample_episode \
+  --question_id q1 \
+  --top_k 3
+```
+
 ## Core Flow
 
 ```text
