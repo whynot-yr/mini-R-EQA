@@ -1,0 +1,16 @@
+{
+  "epochs": 2,
+  "learning_rate": 0.05,
+  "auxiliary_weight": 0.25,
+  "num_examples": 8,
+  "train_loss_history": [
+    0.36299763668385904,
+    0.30489505938221234
+  ],
+  "final_train_loss": 0.30489505938221234,
+  "scorer_auxiliary_signal_history": [
+    0.48566321748708635,
+    0.48566321748708635
+  ],
+  "final_scorer_auxiliary_signal": 0.48566321748708635
+}

@@ -83,6 +83,21 @@ python3 scripts/selector_inference_smoke_test.py \
   --top_k 3
 ```
 
+Run first-stage dual-network training:
+
+```bash
+python3 scripts/train_dual_network.py \
+  --dataset_path reports/candidate_reward_dataset.jsonl \
+  --episode_dir data/sample_episode \
+  --scorer_checkpoint reports/scorer.pt \
+  --selector_checkpoint reports/selector.pt \
+  --output reports/selector_dual.pt \
+  --metrics_output reports/dual_train_metrics.json \
+  --epochs 2 \
+  --max_examples 8 \
+  --dry_run
+```
+
 ## Core Flow
 
 ```text
