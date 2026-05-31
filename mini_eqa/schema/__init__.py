@@ -1,4 +1,5 @@
 from mini_eqa.schema.selector_scorer import (
+    CandidateRewardRecord,
     CandidateSetRecord,
     FrameRecord,
     PredictionRecord,
@@ -6,6 +7,7 @@ from mini_eqa.schema.selector_scorer import (
 )
 
 __all__ = [
+    "CandidateRewardRecord",
     "CandidateSetRecord",
     "FrameRecord",
     "PredictionRecord",

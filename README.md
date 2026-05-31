@@ -38,6 +38,16 @@ python scripts/selector_scorer_smoke_test.py \
   --embeddings data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2/caption_embeddings.npy
 ```
 
+Generate a candidate reward dataset with the offline mock runner:
+
+```bash
+python3 scripts/generate_candidate_reward_dataset.py \
+  --episode_dir data/sample_episode \
+  --runner mock \
+  --output reports/candidate_reward_dataset.jsonl \
+  --dry_run
+```
+
 ## Core Flow
 
 ```text

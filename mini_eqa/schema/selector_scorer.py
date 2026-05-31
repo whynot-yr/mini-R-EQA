@@ -37,3 +37,16 @@ class PredictionRecord:
     predicted_answer: str | None = None
     score: float | None = None
     metadata: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass
+class CandidateRewardRecord:
+    question_id: str
+    question: str
+    gold_answer: str | None
+    candidate_frames: list[str]
+    candidate_type: str
+    predicted_answer: str
+    reward: float
+    reward_breakdown: dict[str, float] = field(default_factory=dict)
+    metadata: dict[str, object] = field(default_factory=dict)
