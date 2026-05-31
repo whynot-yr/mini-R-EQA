@@ -11,6 +11,32 @@ It currently supports:
 - answer generation with `mock` and `deepseek`
 - local OpenAI-compatible answer generation for Llama-style server inference
 - prediction report saving and lightweight evaluation
+- selector-scorer framework skeleton for staged EM-EQA / R-EQA iteration
+
+## Selector-Scorer Skeleton
+
+The repository now includes a minimal selector-scorer framework scaffold under:
+
+- `mini_eqa/selector`
+- `mini_eqa/scorer`
+- `mini_eqa/training`
+- `mini_eqa/inference`
+- `mini_eqa/schema`
+- `mini_eqa/data_loading`
+
+This scaffold is intentionally limited in the first stage:
+
+- no training workflow
+- no candidate reward dataset generation
+- no DeepSeek integration for selector-scorer logic
+
+Smoke-test the scaffold with:
+
+```bash
+python scripts/selector_scorer_smoke_test.py \
+  --captions data/sample_episode/captions.json \
+  --embeddings data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2/caption_embeddings.npy
+```
 
 ## Core Flow
 
