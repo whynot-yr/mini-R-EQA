@@ -1,0 +1,23 @@
+# Server config for real scorer training (torch backend, MLPScorer).
+# Run: python3 scripts/train_scorer.py --config configs/server/train_scorer.yaml
+
+backend: torch
+
+dataset_path: outputs/candidate_reward_dataset.jsonl
+episode_dir: data/openeqa_prepared/sample_episode
+output: outputs/scorer_torch.pt
+metrics_output: outputs/scorer_train_metrics.json
+
+# SBERT model for question encoding (must match embedding_cache_dir model)
+embedding_model: all-MiniLM-L6-v2
+embedding_subdir: sentence-transformers_all-MiniLM-L6-v2
+
+# Model architecture
+hidden_dim: 256
+
+# Training
+epochs: 20
+learning_rate: 0.001
+device: cuda          # change to cpu if no GPU
+
+max_examples: null    # null = use all examples

@@ -1,0 +1,26 @@
+# Server config for staged dual-network selector training.
+# Run: python3 scripts/train_dual_network.py --config configs/server/train_dual_network.yaml
+# NOTE: train_dual_network.py currently uses the fallback JSON checkpoint format.
+# Point scorer_checkpoint/selector_checkpoint at scorer_fallback.json / selector_fallback.json
+# until train_dual_network.py is updated to support the torch backend.
+
+dataset_path: outputs/candidate_reward_dataset.jsonl
+episode_dir: data/openeqa_prepared/sample_episode
+
+scorer_checkpoint: outputs/scorer_fallback.json
+selector_checkpoint: outputs/selector_fallback.json
+output: outputs/selector_dual.pt
+metrics_output: outputs/dual_train_metrics.json
+
+# Feature dim must match what the fallback trainer used
+question_dim: 64
+
+# Training
+epochs: 5
+learning_rate: 0.05
+auxiliary_weight: 0.25
+
+max_examples: null
+
+smoke_question_id: q1
+smoke_top_k: 3

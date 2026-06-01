@@ -11,6 +11,92 @@ It currently supports:
 - answer generation with `mock` and `deepseek`
 - local OpenAI-compatible answer generation for Llama-style server inference
 - prediction report saving and lightweight evaluation
+- selector-scorer framework skeleton for staged EM-EQA / R-EQA iteration
+
+## Selector-Scorer Skeleton
+
+The repository now includes a minimal selector-scorer framework scaffold under:
+
+- `mini_eqa/selector`
+- `mini_eqa/scorer`
+- `mini_eqa/training`
+- `mini_eqa/inference`
+- `mini_eqa/schema`
+- `mini_eqa/data_loading`
+
+This scaffold is intentionally limited in the first stage:
+
+- no training workflow
+- no candidate reward dataset generation
+- no DeepSeek integration for selector-scorer logic
+
+Smoke-test the scaffold with:
+
+```bash
+python scripts/selector_scorer_smoke_test.py \
+  --captions data/sample_episode/captions.json \
+  --embeddings data/sample_episode/embeddings/sentence-transformers_all-MiniLM-L6-v2/caption_embeddings.npy
+```
+
+Generate a candidate reward dataset with the offline mock runner:
+
+```bash
+python3 scripts/generate_candidate_reward_dataset.py \
+  --episode_dir data/sample_episode \
+  --runner mock \
+  --output reports/candidate_reward_dataset.jsonl \
+  --dry_run
+```
+
+Train the scorer on the generated dataset:
+
+```bash
+python3 scripts/train_scorer.py \
+  --dataset_path reports/candidate_reward_dataset.jsonl \
+  --episode_dir data/sample_episode \
+  --output reports/scorer.pt \
+  --metrics_output reports/scorer_train_metrics.json \
+  --epochs 2 \
+  --dry_run
+```
+
+Train the selector from frame-level pseudo labels:
+
+```bash
+python3 scripts/train_selector.py \
+  --dataset_path reports/candidate_reward_dataset.jsonl \
+  --episode_dir data/sample_episode \
+  --output reports/selector.pt \
+  --metrics_output reports/selector_train_metrics.json \
+  --summary_output reports/selector_pseudo_label_summary.json \
+  --epochs 2 \
+  --dry_run
+```
+
+Smoke-test selector top-k inference:
+
+```bash
+python3 scripts/selector_inference_smoke_test.py \
+  --checkpoint reports/selector.pt \
+  --episode_dir data/sample_episode \
+  --question_id q1 \
+  --top_k 3
+```
+
+Run first-stage dual-network training:
+
+```bash
+python3 scripts/train_dual_network.py \
+  --dataset_path reports/candidate_reward_dataset.jsonl \
+  --episode_dir data/sample_episode \
+  --scorer_checkpoint reports/scorer.pt \
+  --selector_checkpoint reports/selector.pt \
+  --output reports/selector_dual.pt \
+  --metrics_output reports/dual_train_metrics.json \
+  --epochs 2 \
+  --max_examples 8 \
+  --dry_run
+```
 
 ## Core Flow
 

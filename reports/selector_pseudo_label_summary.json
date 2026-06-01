@@ -1,0 +1,28 @@
+{
+  "q1": {
+    "high_reward": 1.0,
+    "low_reward": 0.0,
+    "positive_frames": [
+      "frame_001",
+      "frame_002",
+      "frame_003",
+      "frame_004",
+      "frame_005",
+      "frame_006"
+    ],
+    "negative_frames": []
+  },
+  "q2": {
+    "high_reward": 1.0,
+    "low_reward": 0.0,
+    "positive_frames": [
+      "frame_001",
+      "frame_002",
+      "frame_003",
+      "frame_004",
+      "frame_005",
+      "frame_006"
+    ],
+    "negative_frames": []
+  }
+}

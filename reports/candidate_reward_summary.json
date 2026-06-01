@@ -1,0 +1,19 @@
+{
+  "num_questions": 2,
+  "num_candidates": 14,
+  "reward_mean": 0.642857,
+  "reward_std": 0.479157,
+  "reward_min": 0.0,
+  "reward_max": 1.0,
+  "num_zero_rewards": 5,
+  "num_hard_negatives": 0,
+  "candidate_type_distribution": {
+    "reqa_top3": 2,
+    "reqa_top6_random3": 2,
+    "uniform3": 2,
+    "random3": 2,
+    "reqa_perturbed3": 2,
+    "middle_rank_random3": 2,
+    "low_rank_random3": 2
+  }
+}
