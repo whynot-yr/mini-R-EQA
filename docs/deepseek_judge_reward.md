@@ -141,6 +141,22 @@ The judge uses exponential backoff:
 Retried errors: SSL errors, connection errors, timeouts, HTTP 429/500/502/503/504.
 Not retried: HTTP 401 (bad API key), HTTP 403 (forbidden).
 
+## API Key
+
+Preferred:
+
+```bash
+export DEEPSEEK_API_KEY=...
+```
+
+For backward compatibility, the code also accepts:
+
+```bash
+export deepseek_API_KEY=...
+```
+
+Use `DEEPSEEK_API_KEY` for all new setups and server configs.
+
 ## Backward Compatibility
 
 Old JSONL files with only `reward`, `reward_breakdown`, `predicted_answer` (no judge fields) continue to work with all training scripts. Training code reads only the top-level `reward` field.

@@ -59,12 +59,22 @@ def _clamp_score(score: float) -> float:
     return 0.0
 
 
+def _label_from_score(score: float) -> str:
+    if score == 1.0:
+        return "correct"
+    if score == 0.5:
+        return "partial"
+    return "incorrect"
+
+
 def _parse_judge_response(raw: str) -> dict[str, Any]:
     """Parse a judge JSON response robustly, returning a validated dict."""
 
     def _validate(data: dict) -> dict:
         score = _clamp_score(float(data.get("score", 0.0)))
         label = str(data.get("label", "incorrect")).strip().lower()
+        if label not in _VALID_LABELS:
+            label = _label_from_score(score)
         rationale = str(data.get("rationale", "")).strip()
         return {
             "score": score,

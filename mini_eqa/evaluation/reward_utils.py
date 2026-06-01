@@ -5,6 +5,35 @@ from typing import Any
 from mini_eqa.evaluation.answer_metrics import contains_gold, exact_match, token_f1
 
 REWARD_MODES = ("local", "deepseek_judge", "hybrid")
+_JUDGE_LABELS = {"correct", "partial", "incorrect", "judge_parse_error", "judge_api_error"}
+
+
+def _clamp_judge_score(score: float) -> float:
+    if score >= 0.75:
+        return 1.0
+    if score >= 0.25:
+        return 0.5
+    return 0.0
+
+
+def _label_from_score(score: float) -> str:
+    if score == 1.0:
+        return "correct"
+    if score == 0.5:
+        return "partial"
+    return "incorrect"
+
+
+def _normalize_judge_result(judge_result: dict[str, Any] | None) -> tuple[float, str, str]:
+    if judge_result is None:
+        return 0.0, "incorrect", ""
+
+    score = _clamp_judge_score(float(judge_result.get("score", 0.0)))
+    label = str(judge_result.get("label", "incorrect")).strip().lower()
+    rationale = str(judge_result.get("rationale", ""))
+    if label not in _JUDGE_LABELS:
+        label = _label_from_score(score)
+    return score, label, rationale
 
 
 def compute_reward_breakdown(
@@ -32,6 +61,11 @@ def compute_reward_breakdown(
     if reward_mode not in REWARD_MODES:
         raise ValueError(f"reward_mode must be one of {REWARD_MODES}, got {reward_mode!r}")
 
+    if reward_mode in {"deepseek_judge", "hybrid"} and gold_answer is not None and judge_result is None:
+        raise ValueError(
+            f"reward_mode={reward_mode!r} requires judge_result when gold_answer is available."
+        )
+
     if gold_answer is None:
         base = {
             "exact_match": 0.0,
@@ -45,9 +79,10 @@ def compute_reward_breakdown(
             "reward_mode": reward_mode,
         }
         if judge_result is not None:
-            base["judge_score"] = float(judge_result.get("score", 0.0))
-            base["judge_label"] = str(judge_result.get("label", "incorrect"))
-            base["judge_rationale"] = str(judge_result.get("rationale", ""))
+            judge_score, judge_label, judge_rationale = _normalize_judge_result(judge_result)
+            base["judge_score"] = judge_score
+            base["judge_label"] = judge_label
+            base["judge_rationale"] = judge_rationale
         return base
 
     exact = exact_match(prediction, gold_answer)
@@ -55,14 +90,7 @@ def compute_reward_breakdown(
     overlap = token_f1(prediction, gold_answer)
     local_reward = max(exact, overlap)
 
-    judge_score = 0.0
-    judge_label = "incorrect"
-    judge_rationale = ""
-
-    if judge_result is not None:
-        judge_score = float(judge_result.get("score", 0.0))
-        judge_label = str(judge_result.get("label", "incorrect"))
-        judge_rationale = str(judge_result.get("rationale", ""))
+    judge_score, judge_label, judge_rationale = _normalize_judge_result(judge_result)
 
     if reward_mode == "local":
         reward = local_reward

@@ -127,8 +127,10 @@ def main() -> None:
 
     if has_judge:
         print(f"Judge labels:      {label_dist}")
-        if parse_error_count:
-            print(f"Judge parse errors:{parse_error_count}")
+        print(f"Judge parse errors:{parse_error_count}")
+    else:
+        print("Judge labels:      {}")
+        print("Judge parse errors:0")
 
     if missing_predicted or missing_gold or missing_frames:
         print(f"\nField issues:      predicted_answer={missing_predicted} missing, "
