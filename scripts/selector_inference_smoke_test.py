@@ -8,7 +8,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from mini_eqa.inference.selector_inference import select_top_k_frames
+from mini_eqa.inference.selector_inference import (
+    is_torch_checkpoint,
+    select_top_k_frames,
+    select_top_k_frames_torch,
+)
 
 
 def _load_yaml(path: str) -> dict:
@@ -38,6 +42,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--episode_dir", type=str, default=None)
     parser.add_argument("--question_id", type=str, default=None)
     parser.add_argument("--top_k", type=int, default=3)
+    parser.add_argument(
+        "--embedding_model",
+        type=str,
+        default=None,
+        help="SBERT model name (torch checkpoint only). If omitted, read from cache metadata.",
+    )
+    parser.add_argument(
+        "--embedding_subdir",
+        type=str,
+        default="sentence-transformers_all-MiniLM-L6-v2",
+        help="Subdirectory under episode_dir/embeddings/ for cached frame embeddings.",
+    )
+    parser.add_argument("--device", type=str, default="cpu")
     return parser.parse_args()
 
 
@@ -52,14 +69,28 @@ def main() -> None:
             )
             sys.exit(1)
 
-    selected = select_top_k_frames(
-        checkpoint_path=args.checkpoint,
-        episode_dir=args.episode_dir,
-        question_id=args.question_id,
-        top_k=args.top_k,
-    )
+    if is_torch_checkpoint(args.checkpoint):
+        selected = select_top_k_frames_torch(
+            checkpoint_path=args.checkpoint,
+            episode_dir=args.episode_dir,
+            question_id=args.question_id,
+            top_k=args.top_k,
+            embedding_model=args.embedding_model,
+            embedding_subdir=args.embedding_subdir,
+            device=args.device,
+        )
+        backend = "torch"
+    else:
+        selected = select_top_k_frames(
+            checkpoint_path=args.checkpoint,
+            episode_dir=args.episode_dir,
+            question_id=args.question_id,
+            top_k=args.top_k,
+        )
+        backend = "fallback"
+
     print("=" * 80)
-    print("Selector Inference Smoke Test")
+    print(f"Selector Inference Smoke Test (backend={backend})")
     print("=" * 80)
     print(f"Question id: {args.question_id}")
     print(f"Top-k: {args.top_k}")

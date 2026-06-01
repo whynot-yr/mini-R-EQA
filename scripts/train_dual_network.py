@@ -8,8 +8,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from mini_eqa.inference.selector_inference import select_top_k_frames
-from mini_eqa.training.train_dual_network import run_dual_training
+from mini_eqa.training.selector_pseudo_labels import build_selector_training_examples
+from mini_eqa.training.train_dual_network import (
+    run_dual_training,
+    train_torch_dual_network,
+)
+from mini_eqa.utils.io_utils import load_json, save_json
 
 
 def _load_yaml(path: str) -> dict:
@@ -31,81 +35,295 @@ def parse_args() -> argparse.Namespace:
         config_defaults = _load_yaml(pre_args.config)
 
     parser = argparse.ArgumentParser(
-        description="Run the first-stage dual-network selector training with scorer auxiliary guidance."
+        description="Train a dual-network (frozen scorer + fine-tuned selector)."
     )
     parser.set_defaults(**config_defaults)
     parser.add_argument("--config", type=str, default=None)
+    parser.add_argument(
+        "--backend",
+        type=str,
+        choices=["torch", "fallback"],
+        default="torch",
+        help=(
+            "'torch' loads MLPScorer/MLPSelector from .pt files, freezes scorer, "
+            "fine-tunes selector with soft selection. "
+            "'fallback' uses the old pure-Python linear dual training (JSON checkpoints)."
+        ),
+    )
     parser.add_argument(
         "--dataset_path",
         type=str,
         default="reports/candidate_reward_dataset.jsonl",
     )
     parser.add_argument("--episode_dir", type=str, default="data/sample_episode")
-    parser.add_argument("--scorer_checkpoint", type=str, default="reports/scorer.pt")
-    parser.add_argument("--selector_checkpoint", type=str, default="reports/selector.pt")
-    parser.add_argument("--output", type=str, default="reports/selector_dual.pt")
+    parser.add_argument(
+        "--scorer_checkpoint",
+        type=str,
+        default=None,
+        help="For torch: path to scorer_torch.pt. For fallback: path to scorer JSON.",
+    )
+    parser.add_argument(
+        "--selector_checkpoint",
+        type=str,
+        default=None,
+        help="For torch: path to selector_torch.pt. For fallback: path to selector JSON.",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Output checkpoint path. Defaults to selector_dual_torch.pt or selector_dual.pt.",
+    )
     parser.add_argument(
         "--metrics_output",
         type=str,
         default="reports/dual_train_metrics.json",
     )
+    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--learning_rate", type=float, default=1e-3)
+    parser.add_argument("--device", type=str, default="cpu")
+    parser.add_argument(
+        "--lambda_aux",
+        type=float,
+        default=0.1,
+        help="Weight of the scorer auxiliary loss relative to BCE pseudo-label loss.",
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=1.0,
+        help="Softmax temperature for soft frame selection during training.",
+    )
+    parser.add_argument(
+        "--embedding_model",
+        type=str,
+        default=None,
+        help="SBERT model name for question encoding in torch mode.",
+    )
+    parser.add_argument(
+        "--embedding_subdir",
+        type=str,
+        default="sentence-transformers_all-MiniLM-L6-v2",
+        help="Subdirectory under episode_dir/embeddings/ for cached frame embeddings.",
+    )
+    # Fallback-only args
     parser.add_argument("--question_dim", type=int, default=64)
-    parser.add_argument("--epochs", type=int, default=3)
-    parser.add_argument("--learning_rate", type=float, default=0.05)
     parser.add_argument("--auxiliary_weight", type=float, default=0.25)
     parser.add_argument("--max_examples", type=int, default=None)
-    parser.add_argument("--smoke_question_id", type=str, default="q1")
+    # Smoke test args
+    parser.add_argument("--smoke_question_id", type=str, default=None)
     parser.add_argument("--smoke_top_k", type=int, default=3)
     parser.add_argument("--dry_run", action="store_true")
     return parser.parse_args()
 
 
+def _check_torch_available() -> None:
+    try:
+        import torch  # noqa: F401
+    except ImportError:
+        print(
+            "ERROR: --backend torch requires PyTorch, but torch is not installed.\n"
+            "Install torch or use --backend fallback.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
+def _canonical_model_name(model_name: str) -> str:
+    return model_name.strip().split("/")[-1]
+
+
+def _resolve_torch_embedding_model(
+    episode_dir: str,
+    embedding_subdir: str,
+    requested_model: str | None,
+) -> str:
+    metadata_path = (
+        Path(episode_dir) / "embeddings" / embedding_subdir / "caption_embedding_meta.json"
+    )
+    if not metadata_path.exists():
+        print(
+            "ERROR: --backend torch requires caption embedding metadata at "
+            f"{metadata_path}. Build embeddings first or use --backend fallback.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    metadata = load_json(metadata_path)
+    metadata_model = metadata.get("model_name")
+    if not metadata_model:
+        print(
+            "ERROR: caption embedding metadata is missing model_name. "
+            f"Cannot verify question embedding model for {metadata_path}.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if requested_model is not None:
+        if _canonical_model_name(requested_model) != _canonical_model_name(metadata_model):
+            print(
+                "ERROR: --embedding_model does not match the caption embedding model family.\n"
+                f"Requested: {requested_model}\n"
+                f"Cached captions: {metadata_model}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    return str(metadata_model)
+
+
 def main() -> None:
     args = parse_args()
-    checkpoint, metrics = run_dual_training(
-        dataset_path=args.dataset_path,
-        episode_dir=args.episode_dir,
-        scorer_checkpoint_path=args.scorer_checkpoint,
-        selector_checkpoint_path=args.selector_checkpoint,
-        output_checkpoint_path=args.output,
-        metrics_output_path=args.metrics_output,
-        question_dim=args.question_dim,
-        epochs=args.epochs,
-        learning_rate=args.learning_rate,
-        auxiliary_weight=args.auxiliary_weight,
-        max_examples=args.max_examples,
-    )
-    selected = select_top_k_frames(
-        checkpoint_path=args.output,
-        episode_dir=args.episode_dir,
-        question_id=args.smoke_question_id,
-        top_k=args.smoke_top_k,
-    )
 
-    print("=" * 80)
-    print("Dual-Network Training")
-    print("=" * 80)
-    print(f"Dataset: {args.dataset_path}")
-    print(f"Scorer checkpoint: {args.scorer_checkpoint}")
-    print(f"Selector checkpoint: {args.selector_checkpoint}")
-    print(f"Output checkpoint: {args.output}")
-    print(f"Metrics: {args.metrics_output}")
-    print(f"Final train loss: {metrics['final_train_loss']:.6f}")
-    print(f"Final scorer auxiliary signal: {metrics['final_scorer_auxiliary_signal']:.6f}")
-    print("Selected frames:")
-    for item in selected:
-        print(f"{item['frame_id']} | score={item['score']:.6f} | {item['caption']}")
-    if args.dry_run:
-        print("Checkpoint summary:")
-        print(
-            {
-                "framework": checkpoint["framework"],
-                "question_dim": checkpoint["question_dim"],
-                "frame_dim": checkpoint["frame_dim"],
-                "input_dim": checkpoint["input_dim"],
-                "dual_training": checkpoint["dual_training"],
-            }
+    # ── Apply defaults ────────────────────────────────────────────────────────
+    if args.backend == "torch":
+        _check_torch_available()
+        if args.scorer_checkpoint is None:
+            args.scorer_checkpoint = "reports/scorer_torch.pt"
+        if args.selector_checkpoint is None:
+            args.selector_checkpoint = "reports/selector_torch.pt"
+        if args.output is None:
+            args.output = "reports/selector_dual_torch.pt"
+    else:
+        if args.scorer_checkpoint is None:
+            args.scorer_checkpoint = "reports/scorer_fallback.json"
+        if args.selector_checkpoint is None:
+            args.selector_checkpoint = "reports/selector_fallback.json"
+        if args.output is None:
+            args.output = "reports/selector_dual.pt"
+
+    # ── Torch backend ─────────────────────────────────────────────────────────
+    if args.backend == "torch":
+        sbert_model = _resolve_torch_embedding_model(
+            episode_dir=args.episode_dir,
+            embedding_subdir=args.embedding_subdir,
+            requested_model=args.embedding_model,
         )
+
+        examples, _ = build_selector_training_examples(
+            dataset_path=args.dataset_path,
+            episode_dir=args.episode_dir,
+            sbert_model_name=sbert_model,
+            embedding_subdir=args.embedding_subdir,
+        )
+        if args.max_examples is not None:
+            examples = examples[: args.max_examples]
+
+        _, checkpoint, metrics = train_torch_dual_network(
+            examples=examples,
+            scorer_checkpoint_path=args.scorer_checkpoint,
+            selector_checkpoint_path=args.selector_checkpoint,
+            epochs=args.epochs,
+            learning_rate=args.learning_rate,
+            lambda_aux=args.lambda_aux,
+            temperature=args.temperature,
+            device=args.device,
+        )
+
+        import torch
+
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(checkpoint, output_path)
+        save_json(metrics, args.metrics_output)
+
+        print("=" * 80)
+        print("Dual-Network Training (torch backend)")
+        print("=" * 80)
+        print(f"Dataset:           {args.dataset_path}")
+        print(f"Scorer:            {args.scorer_checkpoint}")
+        print(f"Selector:          {args.selector_checkpoint}")
+        print(f"Output:            {args.output}")
+        print(f"Metrics:           {args.metrics_output}")
+        print(f"Examples:          {metrics['num_examples']}")
+        print(f"Questions:         {metrics['num_questions']}")
+        print(f"Epochs:            {metrics['epochs']}")
+        print(f"Final loss:        {metrics['final_train_loss']:.6f}")
+        print(f"  BCE component:   {metrics['final_bce_loss']:.6f}")
+        print(f"  Aux component:   {metrics['final_aux_loss']:.6f}")
+        print(f"Lambda_aux:        {args.lambda_aux}")
+        print(f"Temperature:       {args.temperature}")
+
+        if args.smoke_question_id is not None:
+            from mini_eqa.inference.selector_inference import select_top_k_frames_torch
+
+            selected = select_top_k_frames_torch(
+                checkpoint_path=args.output,
+                episode_dir=args.episode_dir,
+                question_id=args.smoke_question_id,
+                top_k=args.smoke_top_k,
+                embedding_model=sbert_model,
+                embedding_subdir=args.embedding_subdir,
+                device=args.device,
+            )
+            print(f"\nSmoke inference (question_id={args.smoke_question_id}):")
+            for item in selected:
+                print(
+                    f"  {item['frame_id']} | score={item['score']:.4f} | {item['caption'][:60]}"
+                )
+
+        if args.dry_run:
+            print("Checkpoint summary:")
+            print(
+                {
+                    "framework": checkpoint["framework"],
+                    "question_dim": checkpoint["question_dim"],
+                    "frame_dim": checkpoint["frame_dim"],
+                    "dual_training": checkpoint["dual_training"],
+                }
+            )
+
+    # ── Fallback backend ──────────────────────────────────────────────────────
+    else:
+        checkpoint, metrics = run_dual_training(
+            dataset_path=args.dataset_path,
+            episode_dir=args.episode_dir,
+            scorer_checkpoint_path=args.scorer_checkpoint,
+            selector_checkpoint_path=args.selector_checkpoint,
+            output_checkpoint_path=args.output,
+            metrics_output_path=args.metrics_output,
+            question_dim=args.question_dim,
+            epochs=args.epochs,
+            learning_rate=args.learning_rate,
+            auxiliary_weight=args.auxiliary_weight,
+            max_examples=args.max_examples,
+        )
+
+        smoke_qid = args.smoke_question_id or "q1"
+        from mini_eqa.inference.selector_inference import select_top_k_frames
+
+        selected = select_top_k_frames(
+            checkpoint_path=args.output,
+            episode_dir=args.episode_dir,
+            question_id=smoke_qid,
+            top_k=args.smoke_top_k,
+        )
+
+        print("=" * 80)
+        print("Dual-Network Training (fallback backend)")
+        print("=" * 80)
+        print(f"Dataset:           {args.dataset_path}")
+        print(f"Scorer:            {args.scorer_checkpoint}")
+        print(f"Selector:          {args.selector_checkpoint}")
+        print(f"Output:            {args.output}")
+        print(f"Metrics:           {args.metrics_output}")
+        print(f"Final train loss:  {metrics['final_train_loss']:.6f}")
+        print(f"Final aux signal:  {metrics['final_scorer_auxiliary_signal']:.6f}")
+        print(f"Selected frames (question_id={smoke_qid}):")
+        for item in selected:
+            print(f"  {item['frame_id']} | score={item['score']:.6f} | {item['caption']}")
+
+        if args.dry_run:
+            print("Checkpoint summary:")
+            print(
+                {
+                    "framework": checkpoint.get("framework"),
+                    "question_dim": checkpoint.get("question_dim"),
+                    "frame_dim": checkpoint.get("frame_dim"),
+                    "input_dim": checkpoint.get("input_dim"),
+                    "dual_training": checkpoint.get("dual_training"),
+                }
+            )
 
 
 if __name__ == "__main__":
