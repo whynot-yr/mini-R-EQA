@@ -12,10 +12,29 @@ from mini_eqa.inference.selector_inference import select_top_k_frames
 from mini_eqa.training.train_dual_network import run_dual_training
 
 
+def _load_yaml(path: str) -> dict:
+    try:
+        import yaml
+    except ImportError:
+        raise RuntimeError("PyYAML is required for --config support. pip install pyyaml")
+    with open(path) as f:
+        return yaml.safe_load(f) or {}
+
+
 def parse_args() -> argparse.Namespace:
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--config", type=str, default=None)
+    pre_args, _ = pre.parse_known_args()
+
+    config_defaults: dict = {}
+    if pre_args.config:
+        config_defaults = _load_yaml(pre_args.config)
+
     parser = argparse.ArgumentParser(
         description="Run the first-stage dual-network selector training with scorer auxiliary guidance."
     )
+    parser.set_defaults(**config_defaults)
+    parser.add_argument("--config", type=str, default=None)
     parser.add_argument(
         "--dataset_path",
         type=str,

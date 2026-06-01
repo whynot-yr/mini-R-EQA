@@ -1,0 +1,7 @@
+# Server config for selector inference smoke test.
+# Run: python3 scripts/selector_inference_smoke_test.py --config configs/server/run_selector_inference.yaml
+
+checkpoint: outputs/selector_torch.pt
+episode_dir: data/openeqa_prepared/sample_episode
+question_id: q1
+top_k: 3
