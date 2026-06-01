@@ -122,5 +122,7 @@ hidden_dim: 256
 ## Backend Behavior Rules
 
 - `backend=torch`: If torch is not installed, the script exits immediately with a clear error.
+- `backend=torch`: The script resolves the caption embedding metadata model and uses that SBERT family for question embeddings; it fails if the cache metadata is missing or the requested model family mismatches.
 - `backend=fallback`: Allowed only for smoke tests. Does not use `MLPScorer` / `MLPSelector`.
 - Checkpoints from the two backends are **not interchangeable** — do not load a fallback JSON with `torch.load`.
+- `scripts/selector_inference_smoke_test.py` currently supports fallback-format JSON checkpoints only; use the dual-network output or a fallback selector checkpoint for smoke inference.

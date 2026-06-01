@@ -15,6 +15,7 @@ from mini_eqa.training.train_selector import (
     train_torch_selector,
 )
 from mini_eqa.utils.io_utils import save_json
+from mini_eqa.utils.io_utils import load_json
 
 
 def _load_yaml(path: str) -> dict:
@@ -104,6 +105,53 @@ def _check_torch_available() -> None:
         sys.exit(1)
 
 
+def _canonical_model_name(model_name: str) -> str:
+    return model_name.strip().split("/")[-1]
+
+
+def _resolve_torch_embedding_model(
+    episode_dir: str,
+    embedding_subdir: str,
+    requested_model: str | None,
+) -> str:
+    metadata_path = (
+        Path(episode_dir)
+        / "embeddings"
+        / embedding_subdir
+        / "caption_embedding_meta.json"
+    )
+    if not metadata_path.exists():
+        print(
+            "ERROR: --backend torch requires caption embedding metadata at "
+            f"{metadata_path}. Build embeddings first or use --backend fallback.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    metadata = load_json(metadata_path)
+    metadata_model = metadata.get("model_name")
+    if not metadata_model:
+        print(
+            "ERROR: caption embedding metadata is missing model_name. "
+            f"Cannot verify question embedding model for {metadata_path}.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if requested_model is not None:
+        if _canonical_model_name(requested_model) != _canonical_model_name(metadata_model):
+            print(
+                "ERROR: --embedding_model does not match the caption embedding model family.\n"
+                f"Requested: {requested_model}\n"
+                f"Cached captions: {metadata_model}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        return str(metadata_model)
+
+    return str(metadata_model)
+
+
 def main() -> None:
     args = parse_args()
 
@@ -116,7 +164,13 @@ def main() -> None:
         else:
             args.output = "reports/selector_fallback.json"
 
-    sbert_model = args.embedding_model if args.backend == "torch" else None
+    sbert_model = None
+    if args.backend == "torch":
+        sbert_model = _resolve_torch_embedding_model(
+            episode_dir=args.episode_dir,
+            embedding_subdir=args.embedding_subdir,
+            requested_model=args.embedding_model,
+        )
 
     examples, summaries = build_selector_training_examples(
         dataset_path=args.dataset_path,

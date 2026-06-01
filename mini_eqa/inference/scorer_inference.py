@@ -11,6 +11,10 @@ def load_scorer_checkpoint(checkpoint_path: str | Path) -> dict:
     return load_json(checkpoint_path)
 
 
+def _row_frame_ids(row: dict) -> list[str]:
+    return row.get("frame_ids") or row.get("candidate_frames", [])
+
+
 def predict_reward_from_features(
     checkpoint: dict,
     question_embedding: list[float],
@@ -88,15 +92,16 @@ def build_frame_auxiliary_targets(
             question_map[question_id],
             dim=checkpoint["question_dim"],
         )
+        frame_ids = _row_frame_ids(row)
         candidate_embedding = mean_pool_embeddings(
-            [frame_index[frame_id] for frame_id in row["candidate_frames"] if frame_id in frame_index]
+            [frame_index[frame_id] for frame_id in frame_ids if frame_id in frame_index]
         )
         predicted_reward = predict_reward_from_features(
             checkpoint=checkpoint,
             question_embedding=question_embedding,
             candidate_embedding=candidate_embedding,
         )
-        for frame_id in row["candidate_frames"]:
+        for frame_id in frame_ids:
             grouped_scores.setdefault((question_id, frame_id), []).append(predicted_reward)
 
     return {

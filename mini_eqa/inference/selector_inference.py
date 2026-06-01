@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import json
 from pathlib import Path
 
 from mini_eqa.data_loading import load_episode_data_bundle
@@ -17,7 +18,13 @@ def _sigmoid(value: float) -> float:
 
 
 def _load_selector_checkpoint(checkpoint_path: str | Path) -> dict:
-    return load_json(checkpoint_path)
+    try:
+        return load_json(checkpoint_path)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(
+            "Selector inference expects a fallback-format JSON checkpoint. "
+            "Torch `.pt` selector checkpoints are not supported by this smoke test."
+        ) from exc
 
 
 def select_top_k_frames(

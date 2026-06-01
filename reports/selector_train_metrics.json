@@ -1,10 +1,11 @@
 {
   "epochs": 2,
-  "learning_rate": 0.05,
-  "num_examples": 8,
+  "learning_rate": 0.001,
+  "device": "cpu",
+  "num_examples": 5,
   "train_loss_history": [
-    0.6066356379719178,
-    0.4492465787578754
+    0.6860744833946228,
+    0.5841256618499756
   ],
-  "final_train_loss": 0.4492465787578754
+  "final_train_loss": 0.5841256618499756
 }

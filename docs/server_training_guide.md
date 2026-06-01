@@ -124,7 +124,9 @@ python3 scripts/selector_inference_smoke_test.py \
     --config configs/server/run_selector_inference.yaml
 ```
 
-This confirms the trained selector can load and run inference.
+This smoke test currently loads the fallback-format selector produced by step 4
+(`outputs/selector_dual.pt`, JSON content despite the `.pt` suffix), not the
+torch-native selector checkpoint from step 3.
 
 ## Verifying Outputs
 
@@ -194,4 +196,5 @@ All server configs live under `configs/server/`. Key settings per file:
 | `caption_embeddings.npy not found` | Run embedding generation first |
 | `Reward variance is zero` | Use `--runner deepseek` for real data, or add `allow_zero_variance_reward: true` to the scorer config |
 | `load_state_dict` fails | Ensure the checkpoint was saved with `backend=torch` (torch.save, not JSON) |
+| `Selector inference expects a fallback-format JSON checkpoint` | Point the smoke test at `outputs/selector_dual.pt` or `selector_fallback.json`, not `selector_torch.pt` |
 | CUDA OOM | Reduce `epochs` or process fewer examples with `--max_examples` |
