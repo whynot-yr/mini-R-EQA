@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 import os
+import random
+import sys
+import time
 from typing import Any
+
+_RETRYABLE_HTTP_STATUSES = frozenset({429, 500, 502, 503, 504})
+_FATAL_HTTP_STATUSES = frozenset({401, 403})
 
 
 def _build_fallback_prompt(question: str, retrieved: list[dict]) -> str:
@@ -56,12 +62,101 @@ def _extract_text_from_response(response: Any) -> str:
     raise RuntimeError("deepseek response did not contain readable text output.")
 
 
+def _http_status_from_exc(exc: Exception) -> int | None:
+    """Extract HTTP status code from an exception if present."""
+    for attr in ("response", "http_response"):
+        response = getattr(exc, attr, None)
+        if response is not None:
+            code = getattr(response, "status_code", None)
+            if isinstance(code, int):
+                return code
+    code = getattr(exc, "status_code", None)
+    if isinstance(code, int):
+        return code
+    return None
+
+
+def _is_retryable(exc: Exception) -> bool:
+    """Return True if the exception represents a transient failure worth retrying."""
+    try:
+        import requests.exceptions as req_exc
+
+        if isinstance(exc, (req_exc.SSLError, req_exc.ConnectionError, req_exc.Timeout)):
+            return True
+    except ImportError:
+        pass
+
+    status = _http_status_from_exc(exc)
+    if status is not None:
+        return status in _RETRYABLE_HTTP_STATUSES
+
+    return False
+
+
+def _is_fatal(exc: Exception) -> bool:
+    """Return True if the exception should never be retried (auth errors)."""
+    status = _http_status_from_exc(exc)
+    if status is not None:
+        return status in _FATAL_HTTP_STATUSES
+    return False
+
+
+def _call_with_retry(
+    fn,
+    max_retries: int,
+    initial_sleep: float,
+    multiplier: float = 2.0,
+    jitter_fraction: float = 0.1,
+) -> Any:
+    """Call fn(), retrying on transient errors with exponential backoff + jitter.
+
+    Non-retryable exceptions (auth errors, logic errors) are re-raised immediately.
+    After max_retries exhausted, raises RuntimeError with the last exception.
+    """
+    sleep_time = initial_sleep
+    last_exc: Exception | None = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            return fn()
+        except Exception as exc:
+            if _is_fatal(exc):
+                status = _http_status_from_exc(exc)
+                raise RuntimeError(
+                    f"deepseek authentication error (HTTP {status}). "
+                    "Check your DEEPSEEK_API_KEY. Not retrying."
+                ) from exc
+
+            if not _is_retryable(exc):
+                raise
+
+            last_exc = exc
+            if attempt < max_retries:
+                jitter = sleep_time * jitter_fraction * random.random()
+                actual_sleep = sleep_time + jitter
+                print(
+                    f"[deepseek retry {attempt + 1}/{max_retries}] "
+                    f"{type(exc).__name__}: {exc} — "
+                    f"sleeping {actual_sleep:.1f}s before next attempt.",
+                    file=sys.stderr,
+                )
+                time.sleep(actual_sleep)
+                sleep_time *= multiplier
+
+    raise RuntimeError(
+        f"deepseek API request failed after {max_retries + 1} attempts. "
+        f"Last error: {type(last_exc).__name__}: {last_exc}"
+    ) from last_exc
+
+
 def deepseek_answer(
     question: str,
     retrieved: list[dict],
     prompt: str | None = None,
     model: str = "gpt-4o-mini",
     max_output_tokens: int = 128,
+    max_retries: int = 5,
+    retry_initial_sleep: float = 3.0,
 ) -> str:
     try:
         from dotenv import load_dotenv
@@ -93,6 +188,7 @@ def deepseek_answer(
     if model == "gpt-4o-mini":
         resolved_model = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
 
+    # Client construction makes no network call — do it outside the retry loop.
     try:
         if hasattr(deepseek, "DeepSeekAPI"):
             client = deepseek.DeepSeekAPI(api_key=api_key)
@@ -104,7 +200,12 @@ def deepseek_answer(
             raise RuntimeError(
                 "Unsupported deepseek SDK interface. Expected DeepSeekAPI, DeepSeek, or Client."
             )
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"Failed to initialize deepseek client: {exc}") from exc
 
+    def _do_call() -> str:
         if hasattr(client, "chat_completion"):
             return client.chat_completion(
                 prompt=prompt_text,
@@ -131,5 +232,9 @@ def deepseek_answer(
         raise RuntimeError(
             "Unsupported deepseek client interface. Expected responses or chat.completions."
         )
-    except Exception as exc:
-        raise RuntimeError(f"deepseek API request failed: {exc}") from exc
+
+    return _call_with_retry(
+        _do_call,
+        max_retries=max_retries,
+        initial_sleep=retry_initial_sleep,
+    )

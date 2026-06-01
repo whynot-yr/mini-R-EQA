@@ -83,6 +83,18 @@ def parse_args() -> argparse.Namespace:
         default=0.2,
         help="Reward threshold below which a high-retrieval-score candidate is a hard negative.",
     )
+    parser.add_argument(
+        "--max_retries",
+        type=int,
+        default=5,
+        help="Maximum retry attempts for transient deepseek API failures (SSL, connection, 429, 5xx).",
+    )
+    parser.add_argument(
+        "--retry_initial_sleep",
+        type=float,
+        default=3.0,
+        help="Initial sleep (seconds) before first retry; doubles on each subsequent attempt.",
+    )
     parser.add_argument("--dry_run", action="store_true")
     return parser.parse_args()
 
@@ -100,6 +112,8 @@ def run_candidate_answer(
     model: str,
     max_output_tokens: int,
     base_url: str | None,
+    max_retries: int = 5,
+    retry_initial_sleep: float = 3.0,
 ) -> str:
     runner = get_runner(runner_name)
     if runner_name == "mock":
@@ -117,6 +131,9 @@ def run_candidate_answer(
         "model": model,
         "max_output_tokens": max_output_tokens,
     }
+    if runner_name == "deepseek":
+        runner_kwargs["max_retries"] = max_retries
+        runner_kwargs["retry_initial_sleep"] = retry_initial_sleep
     if runner_name in {"openai_compatible", "llama_local"} and base_url is not None:
         runner_kwargs["base_url"] = base_url
     return runner(**runner_kwargs)
@@ -148,6 +165,8 @@ def generate_rows(
     embedding_model: str | None,
     hard_negative_min_score: float,
     hard_negative_max_reward: float,
+    max_retries: int = 5,
+    retry_initial_sleep: float = 3.0,
 ) -> list[dict]:
     rows: list[dict] = []
     for question_index, question_item in enumerate(questions):
@@ -168,6 +187,8 @@ def generate_rows(
                 model=model,
                 max_output_tokens=max_output_tokens,
                 base_url=base_url,
+                max_retries=max_retries,
+                retry_initial_sleep=retry_initial_sleep,
             )
             reward_breakdown = compute_reward_breakdown(
                 prediction=predicted_answer,
@@ -305,6 +326,8 @@ def main() -> None:
         embedding_model=args.embedding_model,
         hard_negative_min_score=args.hard_negative_min_score,
         hard_negative_max_reward=args.hard_negative_max_reward,
+        max_retries=args.max_retries,
+        retry_initial_sleep=args.retry_initial_sleep,
     )
 
     if not args.dry_run:
