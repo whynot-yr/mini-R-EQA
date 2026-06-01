@@ -94,7 +94,7 @@ def train_dual_selector(
 
 def run_dual_training(
     dataset_path: str | Path,
-    episode_dir: str | Path,
+    episode_dir: str | Path | None,
     scorer_checkpoint_path: str | Path,
     selector_checkpoint_path: str | Path,
     output_checkpoint_path: str | Path,
@@ -105,12 +105,14 @@ def run_dual_training(
     auxiliary_weight: float = 0.25,
     max_examples: int | None = None,
     min_reward_gap: float = 0.25,
+    prepared_root: str | Path | None = None,
 ) -> tuple[dict, dict]:
     examples, _ = build_selector_training_examples(
         dataset_path=dataset_path,
         episode_dir=episode_dir,
         question_dim=question_dim,
         min_reward_gap=min_reward_gap,
+        prepared_root=prepared_root,
     )
     if max_examples is not None:
         examples = examples[:max_examples]

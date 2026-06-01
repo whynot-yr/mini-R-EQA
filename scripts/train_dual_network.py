@@ -13,7 +13,7 @@ from mini_eqa.training.train_dual_network import (
     run_dual_training,
     train_torch_dual_network,
 )
-from mini_eqa.utils.io_utils import load_json, save_json
+from mini_eqa.utils.io_utils import load_json, load_jsonl, save_json
 
 
 def _load_yaml(path: str) -> dict:
@@ -55,7 +55,21 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="reports/candidate_reward_dataset.jsonl",
     )
-    parser.add_argument("--episode_dir", type=str, default="data/sample_episode")
+    parser.add_argument(
+        "--episode_dir",
+        type=str,
+        default=None,
+        help="Path to a single episode directory. Mutually exclusive with --prepared_root.",
+    )
+    parser.add_argument(
+        "--prepared_root",
+        type=str,
+        default=None,
+        help=(
+            "Root directory containing episode subdirectories for multi-episode training. "
+            "Each JSONL row must have an 'episode_id' field."
+        ),
+    )
     parser.add_argument(
         "--scorer_checkpoint",
         type=str,
@@ -143,14 +157,40 @@ def _canonical_model_name(model_name: str) -> str:
     return model_name.strip().split("/")[-1]
 
 
+def _resolve_meta_dir(
+    episode_dir: str | None,
+    prepared_root: str | None,
+    embedding_subdir: str,
+    dataset_path: str,
+) -> Path:
+    if episode_dir is not None:
+        return Path(episode_dir) / "embeddings" / embedding_subdir
+    rows = load_jsonl(dataset_path)
+    if not rows:
+        print("ERROR: dataset is empty; cannot resolve embedding model.", file=sys.stderr)
+        sys.exit(1)
+    ep_id = rows[0].get("episode_id")
+    if not ep_id:
+        print(
+            "ERROR: first JSONL row is missing episode_id; "
+            "cannot auto-resolve embedding model for --prepared_root mode. "
+            "Set --embedding_model explicitly.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return Path(prepared_root) / ep_id / "embeddings" / embedding_subdir  # type: ignore[arg-type]
+
+
 def _resolve_torch_embedding_model(
-    episode_dir: str,
+    episode_dir: str | None,
     embedding_subdir: str,
     requested_model: str | None,
+    prepared_root: str | None = None,
+    dataset_path: str = "",
 ) -> str:
-    metadata_path = (
-        Path(episode_dir) / "embeddings" / embedding_subdir / "caption_embedding_meta.json"
-    )
+    meta_dir = _resolve_meta_dir(episode_dir, prepared_root, embedding_subdir, dataset_path)
+    metadata_path = meta_dir / "caption_embedding_meta.json"
+
     if not metadata_path.exists():
         print(
             "ERROR: --backend torch requires caption embedding metadata at "
@@ -185,6 +225,14 @@ def _resolve_torch_embedding_model(
 def main() -> None:
     args = parse_args()
 
+    if args.episode_dir is None and args.prepared_root is None:
+        print(
+            "ERROR: Provide --episode_dir (single episode) or "
+            "--prepared_root (multi-episode training).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     # ── Apply defaults ────────────────────────────────────────────────────────
     if args.backend == "torch":
         _check_torch_available()
@@ -208,6 +256,8 @@ def main() -> None:
             episode_dir=args.episode_dir,
             embedding_subdir=args.embedding_subdir,
             requested_model=args.embedding_model,
+            prepared_root=args.prepared_root,
+            dataset_path=args.dataset_path,
         )
 
         examples, _ = build_selector_training_examples(
@@ -216,6 +266,7 @@ def main() -> None:
             sbert_model_name=sbert_model,
             embedding_subdir=args.embedding_subdir,
             min_reward_gap=args.min_reward_gap,
+            prepared_root=args.prepared_root,
         )
         if args.max_examples is not None:
             examples = examples[: args.max_examples]
@@ -299,6 +350,7 @@ def main() -> None:
             auxiliary_weight=args.auxiliary_weight,
             max_examples=args.max_examples,
             min_reward_gap=args.min_reward_gap,
+            prepared_root=args.prepared_root,
         )
 
         smoke_qid = args.smoke_question_id or "q1"

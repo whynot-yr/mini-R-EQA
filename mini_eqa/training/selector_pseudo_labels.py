@@ -8,7 +8,7 @@ from pathlib import Path
 
 from mini_eqa.data_loading import load_episode_data_bundle
 from mini_eqa.training.feature_utils import hashed_text_embedding
-from mini_eqa.utils.io_utils import load_json, load_jsonl
+from mini_eqa.utils.io_utils import load_jsonl
 
 _DEFAULT_EMBEDDING_SUBDIR = "sentence-transformers_all-MiniLM-L6-v2"
 
@@ -38,19 +38,38 @@ def _cosine_sim(a: list[float], b: list[float]) -> float:
     return dot / (norm_a * norm_b)
 
 
-def _build_frame_index(
-    episode_dir: Path,
-    embedding_subdir: str,
-) -> dict[str, list[float]]:
+def _load_frame_index(episode_dir: Path, embedding_subdir: str) -> dict[str, list[float]]:
+    embeddings_path = episode_dir / "embeddings" / embedding_subdir / "caption_embeddings.npy"
+    captions_path = episode_dir / "captions.json"
+
+    if not episode_dir.exists():
+        raise FileNotFoundError(f"Episode directory not found: {episode_dir}")
+    if not embeddings_path.exists():
+        raise FileNotFoundError(f"Caption embeddings not found: {embeddings_path}")
+
     bundle = load_episode_data_bundle(
-        captions_path=episode_dir / "captions.json",
-        embeddings_path=episode_dir / "embeddings" / embedding_subdir / "caption_embeddings.npy",
+        captions_path=captions_path,
+        embeddings_path=embeddings_path,
     )
     return {
         record.frame_id: [float(v) for v in bundle.caption_embeddings[record.embedding_index]]
         for record in bundle.frame_records
         if record.embedding_index is not None
     }
+
+
+class _FrameCache:
+    """Lazy per-episode frame-embedding index with in-process caching."""
+
+    def __init__(self, embedding_subdir: str) -> None:
+        self._subdir = embedding_subdir
+        self._cache: dict[str, dict[str, list[float]]] = {}
+
+    def get(self, episode_dir: Path) -> dict[str, list[float]]:
+        key = str(episode_dir.resolve())
+        if key not in self._cache:
+            self._cache[key] = _load_frame_index(episode_dir, self._subdir)
+        return self._cache[key]
 
 
 def _make_frame_features(
@@ -63,44 +82,62 @@ def _make_frame_features(
         return None
     f_emb = frame_index[frame_id]
     if sbert_mode:
-        cosine = _cosine_sim(q_emb, f_emb)
-        return f_emb + [cosine]
+        return f_emb + [_cosine_sim(q_emb, f_emb)]
     return f_emb
 
 
 def build_selector_training_examples(
     dataset_path: str | Path,
-    episode_dir: str | Path,
+    episode_dir: str | Path | None = None,
     question_dim: int = 64,
     sbert_model_name: str | None = None,
     embedding_subdir: str = _DEFAULT_EMBEDDING_SUBDIR,
     min_reward_gap: float = 0.25,
+    prepared_root: str | Path | None = None,
 ) -> tuple[list[SelectorTrainingExample], dict]:
-    """Build selector training examples from a candidate reward dataset.
+    """Build selector training examples, supporting single or multi-episode datasets.
 
-    Args:
-        min_reward_gap: Minimum gap between high and low reward to generate
-            pseudo labels for a question. Questions with reward_gap < threshold
-            are skipped entirely — they carry no preference signal.
+    Provide either:
+        episode_dir   – single episode (legacy / single-episode mode)
+        prepared_root – root containing episode subdirectories; each JSONL row
+                        must have an "episode_id" field.
 
-    Returns:
-        (examples, summary) where summary contains aggregate stats and per-question detail.
+    Questions whose high_reward - low_reward < min_reward_gap are skipped.
     """
-    dataset_rows = load_jsonl(dataset_path)
-    episode_dir = Path(episode_dir)
-    questions = load_json(episode_dir / "questions.json")
-    question_map = {item["question_id"]: item["question"] for item in questions}
-    frame_index = _build_frame_index(episode_dir, embedding_subdir)
+    if prepared_root is None and episode_dir is None:
+        raise ValueError(
+            "Provide either episode_dir (single episode) or "
+            "prepared_root (multi-episode training)."
+        )
 
+    dataset_rows = load_jsonl(dataset_path)
+    sbert_mode = sbert_model_name is not None
+
+    # Build question_id → text and question_id → episode_id mappings from JSONL rows.
+    # Using row["question"] avoids a separate questions.json load and works for
+    # both single and multi-episode datasets.
+    question_text_map: dict[str, str] = {}
+    question_to_episode: dict[str, str] = {}
+    for row in dataset_rows:
+        qid = row["question_id"]
+        question_text_map[qid] = row["question"]
+        ep_id = row.get("episode_id")
+        if ep_id:
+            question_to_episode[qid] = ep_id
+
+    # Batch-encode all unique question texts upfront (SBERT mode only).
     question_emb_map: dict[str, list[float]] = {}
-    if sbert_model_name is not None:
+    if sbert_mode:
         model = _load_sbert(sbert_model_name)
-        unique_texts = list(dict.fromkeys(question_map.values()))
+        unique_texts = list(dict.fromkeys(question_text_map.values()))
         encoded = model.encode(unique_texts, convert_to_numpy=True, normalize_embeddings=True)
         text_to_emb = {t: encoded[i].tolist() for i, t in enumerate(unique_texts)}
-        question_emb_map = {qid: text_to_emb[text] for qid, text in question_map.items()}
+        question_emb_map = {qid: text_to_emb[text] for qid, text in question_text_map.items()}
 
-    sbert_mode = sbert_model_name is not None
+    cache = _FrameCache(embedding_subdir)
+    # In single-episode mode, pre-load and validate the episode once.
+    if prepared_root is None:
+        cache.get(Path(episode_dir))  # type: ignore[arg-type]
 
     grouped_rows: dict[str, list[dict]] = {}
     for row in dataset_rows:
@@ -114,12 +151,25 @@ def build_selector_training_examples(
     num_questions_skipped = 0
 
     for question_id, rows in grouped_rows.items():
+        # Resolve episode directory for this question.
+        if prepared_root is not None:
+            ep_id = question_to_episode.get(question_id)
+            if not ep_id:
+                raise ValueError(
+                    f"Question {question_id!r} has no episode_id in the dataset. "
+                    "episode_id is required for multi-episode training with --prepared_root."
+                )
+            ep_dir = Path(prepared_root) / ep_id
+        else:
+            ep_dir = Path(episode_dir)  # type: ignore[arg-type]
+
+        frame_index = cache.get(ep_dir)
+
         rewards = [float(row["reward"]) for row in rows]
         high_reward = max(rewards)
         low_reward = min(rewards)
         reward_gap = high_reward - low_reward
 
-        # Skip questions with insufficient reward spread — no preference signal.
         if reward_gap < min_reward_gap:
             skip_reason = "insufficient_reward_gap"
             skipped_reason_counts[skip_reason] = skipped_reason_counts.get(skip_reason, 0) + 1
@@ -135,16 +185,12 @@ def build_selector_training_examples(
             }
             continue
 
-        # Positive: frames from high-reward candidates.
         positive_frames = {
             frame_id
             for row in rows
             if float(row["reward"]) == high_reward
             for frame_id in (row.get("frame_ids") or row.get("candidate_frames", []))
         }
-
-        # Negative: frames from low-reward candidates OR hard negatives,
-        # excluding any frame that appears in positive_frames.
         negative_frames = {
             frame_id
             for row in rows
@@ -156,7 +202,7 @@ def build_selector_training_examples(
         if sbert_mode:
             q_emb = question_emb_map[question_id]
         else:
-            q_emb = hashed_text_embedding(question_map[question_id], dim=question_dim)
+            q_emb = hashed_text_embedding(question_text_map[question_id], dim=question_dim)
 
         pos_added = 0
         for frame_id in sorted(positive_frames):
@@ -203,7 +249,6 @@ def build_selector_training_examples(
             "negative_frames": sorted(negative_frames),
         }
 
-    # ── Fail loudly if nothing to train on ───────────────────────────────────
     if not examples:
         raise RuntimeError(
             f"No selector training examples could be generated. "
@@ -213,7 +258,6 @@ def build_selector_training_examples(
             "(e.g. --reward_mode deepseek_judge), or verify the dataset has reward variance."
         )
 
-    # ── Class-balance warnings ────────────────────────────────────────────────
     if total_positive == 0:
         warnings.warn(
             "Selector training data has zero positive labels. "

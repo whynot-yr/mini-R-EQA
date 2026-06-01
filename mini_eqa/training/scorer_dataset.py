@@ -27,26 +27,65 @@ def _load_sbert(model_name: str):
     return SentenceTransformer(model_name)
 
 
-def build_scorer_training_examples(
-    dataset_path: str | Path,
-    episode_dir: str | Path,
-    question_dim: int = 64,
-    sbert_model_name: str | None = None,
-    embedding_subdir: str = _DEFAULT_EMBEDDING_SUBDIR,
-) -> list[ScorerTrainingExample]:
-    dataset_rows = load_jsonl(dataset_path)
-    episode_dir = Path(episode_dir)
-    bundle = load_episode_data_bundle(
-        captions_path=episode_dir / "captions.json",
-        embeddings_path=episode_dir / "embeddings" / embedding_subdir / "caption_embeddings.npy",
-    )
+def _load_frame_index(episode_dir: Path, embedding_subdir: str) -> dict[str, list[float]]:
+    embeddings_path = episode_dir / "embeddings" / embedding_subdir / "caption_embeddings.npy"
+    captions_path = episode_dir / "captions.json"
 
-    frame_id_to_embedding = {
+    if not episode_dir.exists():
+        raise FileNotFoundError(f"Episode directory not found: {episode_dir}")
+    if not embeddings_path.exists():
+        raise FileNotFoundError(f"Caption embeddings not found: {embeddings_path}")
+
+    bundle = load_episode_data_bundle(
+        captions_path=captions_path,
+        embeddings_path=embeddings_path,
+    )
+    return {
         record.frame_id: [float(v) for v in bundle.caption_embeddings[record.embedding_index]]
         for record in bundle.frame_records
         if record.embedding_index is not None
     }
 
+
+class _FrameCache:
+    """Lazy per-episode frame-embedding index with in-process caching."""
+
+    def __init__(self, embedding_subdir: str) -> None:
+        self._subdir = embedding_subdir
+        self._cache: dict[str, dict[str, list[float]]] = {}
+
+    def get(self, episode_dir: Path) -> dict[str, list[float]]:
+        key = str(episode_dir.resolve())
+        if key not in self._cache:
+            self._cache[key] = _load_frame_index(episode_dir, self._subdir)
+        return self._cache[key]
+
+
+def build_scorer_training_examples(
+    dataset_path: str | Path,
+    episode_dir: str | Path | None = None,
+    question_dim: int = 64,
+    sbert_model_name: str | None = None,
+    embedding_subdir: str = _DEFAULT_EMBEDDING_SUBDIR,
+    prepared_root: str | Path | None = None,
+) -> list[ScorerTrainingExample]:
+    """Build scorer training examples, supporting single or multi-episode datasets.
+
+    Provide either:
+        episode_dir   – single episode (legacy / single-episode mode)
+        prepared_root – root containing episode subdirectories; each JSONL row
+                        must have an "episode_id" field that resolves to
+                        prepared_root / episode_id.
+    """
+    if prepared_root is None and episode_dir is None:
+        raise ValueError(
+            "Provide either episode_dir (single episode) or "
+            "prepared_root (multi-episode training)."
+        )
+
+    dataset_rows = load_jsonl(dataset_path)
+
+    # Batch-encode all unique question texts upfront (SBERT mode only).
     question_emb_map: dict[str, list[float]] = {}
     if sbert_model_name is not None:
         model = _load_sbert(sbert_model_name)
@@ -54,13 +93,32 @@ def build_scorer_training_examples(
         encoded = model.encode(unique_questions, convert_to_numpy=True, normalize_embeddings=True)
         question_emb_map = {q: encoded[i].tolist() for i, q in enumerate(unique_questions)}
 
+    cache = _FrameCache(embedding_subdir)
+    # Pre-load single episode once when using episode_dir mode.
+    if prepared_root is None:
+        ep_dir = Path(episode_dir)  # type: ignore[arg-type]
+        cache.get(ep_dir)  # validate + warm cache
+
     examples: list[ScorerTrainingExample] = []
     for row in dataset_rows:
+        if prepared_root is not None:
+            ep_id = row.get("episode_id")
+            if not ep_id:
+                raise ValueError(
+                    f"Row with question_id={row.get('question_id')!r} is missing episode_id. "
+                    "episode_id is required for multi-episode training with --prepared_root."
+                )
+            ep_dir = Path(prepared_root) / ep_id
+        else:
+            ep_dir = Path(episode_dir)  # type: ignore[arg-type]
+
+        frame_index = cache.get(ep_dir)
+
         frame_ids = row.get("frame_ids") or row.get("candidate_frames", [])
         candidate_embeddings = [
-            frame_id_to_embedding[frame_id]
+            frame_index[frame_id]
             for frame_id in frame_ids
-            if frame_id in frame_id_to_embedding
+            if frame_id in frame_index
         ]
         if not candidate_embeddings:
             continue
