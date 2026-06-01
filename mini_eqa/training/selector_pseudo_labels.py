@@ -156,8 +156,11 @@ def build_selector_training_examples(
             ep_id = question_to_episode.get(question_id)
             if not ep_id:
                 raise ValueError(
-                    f"Question {question_id!r} has no episode_id in the dataset. "
-                    "episode_id is required for multi-episode training with --prepared_root."
+                    f"prepared_root mode requires every JSONL row to contain a non-empty "
+                    f"episode_id. Found missing/null episode_id for question_id={question_id!r}. "
+                    "Re-generate with generate_candidate_reward_dataset.py (episode_id is "
+                    "inferred from --episode_dir basename) or repair with "
+                    "repair_candidate_reward_dataset.py."
                 )
             ep_dir = Path(prepared_root) / ep_id
         else:

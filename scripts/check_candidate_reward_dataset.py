@@ -25,6 +25,20 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Do not exit nonzero when reward variance is zero.",
     )
+    parser.add_argument(
+        "--require_episode_id",
+        action="store_true",
+        help="Fail (exit nonzero) if any row has a missing or null episode_id.",
+    )
+    parser.add_argument(
+        "--hard_negative_max_reward",
+        type=float,
+        default=0.2,
+        help=(
+            "Reward threshold used to check hard-negative consistency. "
+            "A row with is_hard_negative=true and reward > this value is flagged as inconsistent."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -58,6 +72,9 @@ def main() -> None:
     missing_frames = sum(
         1 for r in rows if not (r.get("frame_ids") or r.get("candidate_frames"))
     )
+    missing_episode_id = sum(
+        1 for r in rows if not r.get("episode_id")
+    )
 
     if missing_predicted:
         print(f"WARNING: {missing_predicted} rows missing predicted_answer", file=sys.stderr)
@@ -68,6 +85,21 @@ def main() -> None:
     if missing_frames:
         print(f"WARNING: {missing_frames} rows missing frame_ids", file=sys.stderr)
         exit_code = 1
+    if missing_episode_id and args.require_episode_id:
+        print(
+            f"ERROR: {missing_episode_id} rows have missing or null episode_id. "
+            "Multi-episode training requires a valid episode_id in every row. "
+            "Re-generate with generate_candidate_reward_dataset.py or repair with "
+            "repair_candidate_reward_dataset.py.",
+            file=sys.stderr,
+        )
+        exit_code = 1
+    elif missing_episode_id:
+        print(
+            f"WARNING: {missing_episode_id} rows have missing/null episode_id "
+            "(pass --require_episode_id to make this a hard failure).",
+            file=sys.stderr,
+        )
 
     # ── Core stats ────────────────────────────────────────────────────────────
     rewards = [float(r.get("reward", 0.0)) for r in rows]
@@ -108,6 +140,34 @@ def main() -> None:
     label_dist = dict(Counter(judge_labels)) if has_judge else {}
     parse_error_count = label_dist.get("judge_parse_error", 0)
 
+    # ── Hard-negative consistency checks ─────────────────────────────────────
+    hn_reward_inconsistent = sum(
+        1 for r in rows
+        if r.get("is_hard_negative", False)
+        and float(r.get("reward", 0.0)) > args.hard_negative_max_reward
+    )
+    hn_label_inconsistent = sum(
+        1 for r in rows
+        if r.get("is_hard_negative", False)
+        and r.get("reward_breakdown", {}).get("judge_label") == "correct"
+    )
+    if hn_reward_inconsistent:
+        print(
+            f"WARNING: {hn_reward_inconsistent} rows have is_hard_negative=true "
+            f"but reward > {args.hard_negative_max_reward} (inconsistent). "
+            "Re-judge with --recompute_hard_negatives or repair with "
+            "repair_candidate_reward_dataset.py.",
+            file=sys.stderr,
+        )
+        exit_code = 1
+    if hn_label_inconsistent:
+        print(
+            f"WARNING: {hn_label_inconsistent} rows have is_hard_negative=true "
+            "but judge_label=correct (inconsistent).",
+            file=sys.stderr,
+        )
+        exit_code = 1
+
     # ── Print report ──────────────────────────────────────────────────────────
     sep = "=" * 60
     print(sep)
@@ -122,6 +182,9 @@ def main() -> None:
     print(f"Reward std:        {std_r:.4f}")
     print(f"Zero rewards:      {zero_count} / {len(rows)} ({zero_count / len(rows):.1%})")
     print(f"Hard negatives:    {hard_neg_count}")
+    print(f"  HN reward err:   {hn_reward_inconsistent}")
+    print(f"  HN label err:    {hn_label_inconsistent}")
+    print(f"Missing episode_id:{missing_episode_id}")
     print(f"Usable questions:  {usable_questions} / {len(unique_questions)} ({usable_ratio:.1%})")
     print(f"Candidate types:   {dict(candidate_types)}")
 

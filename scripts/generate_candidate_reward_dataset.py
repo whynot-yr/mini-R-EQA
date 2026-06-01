@@ -43,6 +43,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", type=str, default=None)
     parser.add_argument("--episode_dir", type=str, default="data/sample_episode")
     parser.add_argument(
+        "--episode_id",
+        type=str,
+        default=None,
+        help=(
+            "episode_id to embed in every output row. "
+            "If omitted, inferred from basename(episode_dir). "
+            "Required for multi-episode training with --prepared_root."
+        ),
+    )
+    parser.add_argument(
         "--output",
         type=str,
         default="reports/candidate_reward_dataset.jsonl",
@@ -207,6 +217,7 @@ def generate_rows(
     judge_temperature: float = 0.0,
     judge_max_retries: int = 5,
     judge_retry_initial_sleep: float = 3.0,
+    episode_id: str = "",
 ) -> list[dict]:
     rows: list[dict] = []
     for question_index, question_item in enumerate(questions):
@@ -287,6 +298,7 @@ def generate_rows(
                 retrieval_ranks=retrieval_ranks,
                 is_hard_negative=is_hard_negative,
                 top_k=top_k,
+                episode_id=episode_id or None,
                 selected_items=[
                     {
                         "frame_id": item["frame_id"],
@@ -362,6 +374,16 @@ def main() -> None:
     episode_dir = Path(args.episode_dir)
     captions, questions = load_episode_inputs(episode_dir)
 
+    # episode_id: explicit arg > basename of episode_dir.  Never null.
+    episode_id: str = args.episode_id or episode_dir.name
+    if not episode_id:
+        print(
+            "ERROR: could not determine episode_id. "
+            "Pass --episode_id explicitly or use a non-empty --episode_dir path.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     if args.runner == "deepseek":
         print(
             "WARNING: --runner deepseek will call the DeepSeek API. "
@@ -405,6 +427,7 @@ def main() -> None:
         judge_temperature=args.judge_temperature,
         judge_max_retries=args.judge_max_retries,
         judge_retry_initial_sleep=args.judge_retry_initial_sleep,
+        episode_id=episode_id,
     )
 
     if not args.dry_run:

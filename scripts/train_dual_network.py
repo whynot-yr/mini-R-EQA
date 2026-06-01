@@ -174,7 +174,8 @@ def _resolve_meta_dir(
         print(
             "ERROR: first JSONL row is missing episode_id; "
             "cannot auto-resolve embedding model for --prepared_root mode. "
-            "Set --embedding_model explicitly.",
+            "Ensure JSONL rows have episode_id (re-generate or repair), "
+            "or supply --embedding_model explicitly.",
             file=sys.stderr,
         )
         sys.exit(1)

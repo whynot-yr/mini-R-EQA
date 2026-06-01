@@ -105,8 +105,12 @@ def build_scorer_training_examples(
             ep_id = row.get("episode_id")
             if not ep_id:
                 raise ValueError(
-                    f"Row with question_id={row.get('question_id')!r} is missing episode_id. "
-                    "episode_id is required for multi-episode training with --prepared_root."
+                    f"prepared_root mode requires every JSONL row to contain a non-empty "
+                    f"episode_id. Found missing/null episode_id in row "
+                    f"question_id={row.get('question_id')!r}. "
+                    "Re-generate with generate_candidate_reward_dataset.py (episode_id is "
+                    "inferred from --episode_dir basename) or repair with "
+                    "repair_candidate_reward_dataset.py."
                 )
             ep_dir = Path(prepared_root) / ep_id
         else:
