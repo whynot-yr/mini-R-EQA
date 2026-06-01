@@ -106,6 +106,16 @@ def parse_args() -> argparse.Namespace:
         default="sentence-transformers_all-MiniLM-L6-v2",
         help="Subdirectory under episode_dir/embeddings/ for cached frame embeddings.",
     )
+    parser.add_argument(
+        "--min_reward_gap",
+        type=float,
+        default=0.25,
+        help=(
+            "Minimum gap between high-reward and low-reward candidates for a question "
+            "to generate pseudo labels. Questions with smaller gaps are skipped. "
+            "Set to 0.0 to disable filtering."
+        ),
+    )
     # Fallback-only args
     parser.add_argument("--question_dim", type=int, default=64)
     parser.add_argument("--auxiliary_weight", type=float, default=0.25)
@@ -205,6 +215,7 @@ def main() -> None:
             episode_dir=args.episode_dir,
             sbert_model_name=sbert_model,
             embedding_subdir=args.embedding_subdir,
+            min_reward_gap=args.min_reward_gap,
         )
         if args.max_examples is not None:
             examples = examples[: args.max_examples]
@@ -287,6 +298,7 @@ def main() -> None:
             learning_rate=args.learning_rate,
             auxiliary_weight=args.auxiliary_weight,
             max_examples=args.max_examples,
+            min_reward_gap=args.min_reward_gap,
         )
 
         smoke_qid = args.smoke_question_id or "q1"

@@ -104,11 +104,13 @@ def run_dual_training(
     learning_rate: float = 0.05,
     auxiliary_weight: float = 0.25,
     max_examples: int | None = None,
+    min_reward_gap: float = 0.25,
 ) -> tuple[dict, dict]:
     examples, _ = build_selector_training_examples(
         dataset_path=dataset_path,
         episode_dir=episode_dir,
         question_dim=question_dim,
+        min_reward_gap=min_reward_gap,
     )
     if max_examples is not None:
         examples = examples[:max_examples]

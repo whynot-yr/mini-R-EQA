@@ -89,6 +89,16 @@ def parse_args() -> argparse.Namespace:
         help="Subdirectory under episode_dir/embeddings/ for cached frame embeddings.",
     )
     parser.add_argument("--max_examples", type=int, default=None)
+    parser.add_argument(
+        "--min_reward_gap",
+        type=float,
+        default=0.25,
+        help=(
+            "Minimum gap between high-reward and low-reward candidates for a question "
+            "to generate pseudo labels. Questions with smaller gaps are skipped entirely. "
+            "Set to 0.0 to disable filtering (not recommended)."
+        ),
+    )
     parser.add_argument("--dry_run", action="store_true")
     return parser.parse_args()
 
@@ -178,6 +188,7 @@ def main() -> None:
         question_dim=args.question_dim,
         sbert_model_name=sbert_model,
         embedding_subdir=args.embedding_subdir,
+        min_reward_gap=args.min_reward_gap,
     )
     if args.max_examples is not None:
         examples = examples[: args.max_examples]
@@ -212,6 +223,11 @@ def main() -> None:
     print(f"Backend:           {args.backend}")
     print(f"Dataset:           {args.dataset_path}")
     print(f"Episode dir:       {args.episode_dir}")
+    print(f"Min reward gap:    {args.min_reward_gap}")
+    print(f"Questions used:    {summaries['num_questions_used']} / {summaries['num_questions_total']}")
+    print(f"Questions skipped: {summaries['num_questions_skipped']}")
+    print(f"Positive frames:   {summaries['num_positive_frames']}")
+    print(f"Negative frames:   {summaries['num_negative_frames']}")
     print(f"Examples:          {metrics['num_examples']}")
     print(f"Epochs:            {metrics['epochs']}")
     print(f"Final loss:        {metrics['final_train_loss']:.6f}")
