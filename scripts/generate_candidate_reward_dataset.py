@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from mini_eqa.evaluation.llm_judge_reward import judge_answer_with_deepseek
 from mini_eqa.evaluation.reward_utils import compute_reward_breakdown
 from mini_eqa.inference.candidate_generation import build_candidate_sets
 from mini_eqa.runners.registry import get_runner
@@ -95,6 +96,39 @@ def parse_args() -> argparse.Namespace:
         default=3.0,
         help="Initial sleep (seconds) before first retry; doubles on each subsequent attempt.",
     )
+    # ── Judge / reward mode ────────────────────────────────────────────────────
+    parser.add_argument(
+        "--reward_mode",
+        type=str,
+        default="local",
+        choices=["local", "deepseek_judge", "hybrid"],
+        help=(
+            "Reward computation mode. "
+            "'local' uses lexical metrics (default, no extra API calls). "
+            "'deepseek_judge' calls DeepSeek once per candidate row to judge semantic correctness. "
+            "'hybrid' = max(judge_score, exact_match)."
+        ),
+    )
+    parser.add_argument(
+        "--judge_model",
+        type=str,
+        default="deepseek-chat",
+        help="DeepSeek model for judge calls (only used when reward_mode != local).",
+    )
+    parser.add_argument("--judge_max_output_tokens", type=int, default=128)
+    parser.add_argument("--judge_temperature", type=float, default=0.0)
+    parser.add_argument(
+        "--judge_max_retries",
+        type=int,
+        default=5,
+        help="Max retry attempts for judge API calls.",
+    )
+    parser.add_argument(
+        "--judge_retry_initial_sleep",
+        type=float,
+        default=3.0,
+        help="Initial sleep before judge retry.",
+    )
     parser.add_argument("--dry_run", action="store_true")
     return parser.parse_args()
 
@@ -167,6 +201,12 @@ def generate_rows(
     hard_negative_max_reward: float,
     max_retries: int = 5,
     retry_initial_sleep: float = 3.0,
+    reward_mode: str = "local",
+    judge_model: str = "deepseek-chat",
+    judge_max_output_tokens: int = 128,
+    judge_temperature: float = 0.0,
+    judge_max_retries: int = 5,
+    judge_retry_initial_sleep: float = 3.0,
 ) -> list[dict]:
     rows: list[dict] = []
     for question_index, question_item in enumerate(questions):
@@ -190,9 +230,34 @@ def generate_rows(
                 max_retries=max_retries,
                 retry_initial_sleep=retry_initial_sleep,
             )
+            judge_result = None
+            if reward_mode in ("deepseek_judge", "hybrid"):
+                gold = question_item.get("answer")
+                if gold:
+                    try:
+                        judge_result = judge_answer_with_deepseek(
+                            question=question_item["question"],
+                            gold_answer=gold,
+                            predicted_answer=predicted_answer,
+                            model=judge_model,
+                            max_output_tokens=judge_max_output_tokens,
+                            temperature=judge_temperature,
+                            max_retries=judge_max_retries,
+                            retry_initial_sleep=judge_retry_initial_sleep,
+                        )
+                    except Exception as exc:
+                        judge_result = {
+                            "score": 0.0,
+                            "label": "judge_api_error",
+                            "rationale": str(exc),
+                            "raw_response": "",
+                        }
+
             reward_breakdown = compute_reward_breakdown(
                 prediction=predicted_answer,
                 gold_answer=question_item.get("answer"),
+                reward_mode=reward_mode,
+                judge_result=judge_result,
             )
 
             frame_ids = [item["frame_id"] for item in candidate["frames"]]
@@ -303,6 +368,12 @@ def main() -> None:
             "Ensure DEEPSEEK_API_KEY is set and you have budget.",
             file=sys.stderr,
         )
+    if args.reward_mode in ("deepseek_judge", "hybrid"):
+        print(
+            f"WARNING: --reward_mode {args.reward_mode} calls DeepSeek judge once per candidate. "
+            "This roughly doubles API usage when combined with --runner deepseek.",
+            file=sys.stderr,
+        )
 
     if args.limit is not None:
         questions = questions[: args.limit]
@@ -328,6 +399,12 @@ def main() -> None:
         hard_negative_max_reward=args.hard_negative_max_reward,
         max_retries=args.max_retries,
         retry_initial_sleep=args.retry_initial_sleep,
+        reward_mode=args.reward_mode,
+        judge_model=args.judge_model,
+        judge_max_output_tokens=args.judge_max_output_tokens,
+        judge_temperature=args.judge_temperature,
+        judge_max_retries=args.judge_max_retries,
+        judge_retry_initial_sleep=args.judge_retry_initial_sleep,
     )
 
     if not args.dry_run:
@@ -342,6 +419,7 @@ def main() -> None:
     print("=" * 80)
     print(f"Episode dir:       {episode_dir}")
     print(f"Runner:            {args.runner}")
+    print(f"Reward mode:       {args.reward_mode}")
     print(f"Embedding cache:   {embedding_cache_dir or 'lexical fallback'}")
     print(f"Top-k:             {args.top_k}")
     print(f"Questions:         {len(questions)}")
@@ -349,6 +427,17 @@ def main() -> None:
     print(f"Hard negatives:    {summary['num_hard_negatives']}")
     print(f"Zero rewards:      {summary['num_zero_rewards']} / {len(rows)}")
     print(f"Reward mean/std:   {summary['reward_mean']:.4f} / {summary['reward_std']:.4f}")
+    if args.reward_mode in ("deepseek_judge", "hybrid") and rows:
+        from collections import Counter
+        labels = [
+            row.get("reward_breakdown", {}).get("judge_label", "")
+            for row in rows
+        ]
+        label_counts = dict(Counter(l for l in labels if l))
+        parse_errors = sum(1 for l in labels if l == "judge_parse_error")
+        print(f"Judge labels:      {label_counts}")
+        if parse_errors:
+            print(f"Judge parse errors: {parse_errors}")
     if args.dry_run:
         print("(dry_run — outputs not written)")
         if rows:
