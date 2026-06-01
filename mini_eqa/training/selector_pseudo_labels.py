@@ -87,13 +87,13 @@ def build_selector_training_examples(
             frame_id
             for row in rows
             if float(row["reward"]) == high_reward
-            for frame_id in row["candidate_frames"]
+            for frame_id in (row.get("frame_ids") or row.get("candidate_frames", []))
         }
         negative_frames = {
             frame_id
             for row in rows
             if float(row["reward"]) == low_reward
-            for frame_id in row["candidate_frames"]
+            for frame_id in (row.get("frame_ids") or row.get("candidate_frames", []))
             if frame_id not in positive_frames
         }
 

@@ -9,6 +9,25 @@ from typing import Any
 from mini_eqa.schema import FrameRecord
 from mini_eqa.utils.io_utils import load_json
 
+_DEFAULT_EMBEDDING_SUBDIR = "sentence-transformers_all-MiniLM-L6-v2"
+
+
+def resolve_embedding_paths(
+    episode_dir: str | Path,
+    embedding_subdir: str = _DEFAULT_EMBEDDING_SUBDIR,
+) -> tuple[Path, Path]:
+    """Return (caption_embeddings.npy path, caption_embedding_meta.json path)."""
+    base = Path(episode_dir) / "embeddings" / embedding_subdir
+    return base / "caption_embeddings.npy", base / "caption_embedding_meta.json"
+
+
+def resolve_embedding_cache_dir(
+    episode_dir: str | Path,
+    embedding_subdir: str = _DEFAULT_EMBEDDING_SUBDIR,
+) -> Path:
+    """Return the embeddings subdirectory used by cached_sbert and candidate_generation."""
+    return Path(episode_dir) / "embeddings" / embedding_subdir
+
 try:
     import numpy as np
 except ImportError:  # pragma: no cover - exercised only in dependency-light environments

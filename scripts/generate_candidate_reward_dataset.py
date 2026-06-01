@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import warnings
 from dataclasses import asdict
 from pathlib import Path
 
@@ -13,26 +14,75 @@ from mini_eqa.evaluation.reward_utils import compute_reward_breakdown
 from mini_eqa.inference.candidate_generation import build_candidate_sets
 from mini_eqa.runners.registry import get_runner
 from mini_eqa.schema import CandidateRewardRecord
-from mini_eqa.utils.io_utils import load_json, save_jsonl
+from mini_eqa.utils.io_utils import load_json, save_json, save_jsonl
+
+
+def _load_yaml(path: str) -> dict:
+    try:
+        import yaml
+    except ImportError:
+        raise RuntimeError("PyYAML is required for --config support. pip install pyyaml")
+    with open(path) as f:
+        return yaml.safe_load(f) or {}
 
 
 def parse_args() -> argparse.Namespace:
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--config", type=str, default=None)
+    pre_args, _ = pre.parse_known_args()
+
+    config_defaults: dict = {}
+    if pre_args.config:
+        config_defaults = _load_yaml(pre_args.config)
+
     parser = argparse.ArgumentParser(
         description="Generate candidate reward dataset rows for selector-scorer training."
     )
+    parser.set_defaults(**config_defaults)
+    parser.add_argument("--config", type=str, default=None)
     parser.add_argument("--episode_dir", type=str, default="data/sample_episode")
     parser.add_argument(
         "--output",
         type=str,
         default="reports/candidate_reward_dataset.jsonl",
     )
-    parser.add_argument("--runner", type=str, default="mock")
+    parser.add_argument(
+        "--summary_output",
+        type=str,
+        default="reports/candidate_reward_summary.json",
+    )
+    parser.add_argument("--runner", type=str, default="mock", choices=["mock", "deepseek"])
     parser.add_argument("--model", type=str, default="gpt-4o-mini")
     parser.add_argument("--base_url", type=str, default=None)
     parser.add_argument("--max_output_tokens", type=int, default=128)
     parser.add_argument("--top_k", type=int, default=3)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--embedding_cache_dir",
+        type=str,
+        default=None,
+        help="Directory containing caption_embeddings.npy and caption_embedding_meta.json. "
+        "If provided, uses cached SBERT ranking instead of lexical overlap.",
+    )
+    parser.add_argument(
+        "--embedding_model",
+        type=str,
+        default=None,
+        help="SBERT model name override. If omitted, read from cache metadata.",
+    )
+    parser.add_argument(
+        "--hard_negative_min_score",
+        type=float,
+        default=0.5,
+        help="Retrieval score threshold above which a low-reward candidate is a hard negative.",
+    )
+    parser.add_argument(
+        "--hard_negative_max_reward",
+        type=float,
+        default=0.2,
+        help="Reward threshold below which a high-retrieval-score candidate is a hard negative.",
+    )
     parser.add_argument("--dry_run", action="store_true")
     return parser.parse_args()
 
@@ -72,6 +122,19 @@ def run_candidate_answer(
     return runner(**runner_kwargs)
 
 
+def _warn_if_zero_variance(rewards: list[float], runner: str) -> None:
+    if len(rewards) < 2:
+        return
+    variance = sum((r - sum(rewards) / len(rewards)) ** 2 for r in rewards) / len(rewards)
+    if variance == 0.0:
+        warnings.warn(
+            f"All rewards are identical ({rewards[0]:.4f}) across {len(rewards)} candidates. "
+            f"This is expected with runner='{runner}' on trivial data but will cause degenerate "
+            "pseudo labels in selector training. Use --runner deepseek for real training data.",
+            stacklevel=2,
+        )
+
+
 def generate_rows(
     captions: list[dict],
     questions: list[dict],
@@ -81,6 +144,10 @@ def generate_rows(
     max_output_tokens: int,
     top_k: int,
     seed: int,
+    embedding_cache_dir: str | None,
+    embedding_model: str | None,
+    hard_negative_min_score: float,
+    hard_negative_max_reward: float,
 ) -> list[dict]:
     rows: list[dict] = []
     for question_index, question_item in enumerate(questions):
@@ -89,7 +156,10 @@ def generate_rows(
             question=question_item["question"],
             sample_size=top_k,
             seed=seed + question_index,
+            cache_dir=embedding_cache_dir,
+            model_name=embedding_model,
         )
+        question_rows: list[dict] = []
         for candidate in candidate_sets:
             predicted_answer = run_candidate_answer(
                 runner_name=runner,
@@ -103,25 +173,102 @@ def generate_rows(
                 prediction=predicted_answer,
                 gold_answer=question_item.get("answer"),
             )
-            row = CandidateRewardRecord(
+
+            frame_ids = [item["frame_id"] for item in candidate["frames"]]
+            retrieval_scores = [float(item.get("score", 0.0)) for item in candidate["frames"]]
+            retrieval_ranks = [int(item.get("rank", 0)) for item in candidate["frames"]]
+            mean_retrieval_score = sum(retrieval_scores) / max(len(retrieval_scores), 1)
+            reward_value = float(reward_breakdown["reward"])
+
+            # is_hard_negative is only meaningful when SBERT cosine scores are in use;
+            # lexical overlap counts are unbounded and cannot be compared to [0,1] thresholds.
+            is_hard_negative = (
+                embedding_cache_dir is not None
+                and mean_retrieval_score >= hard_negative_min_score
+                and reward_value <= hard_negative_max_reward
+            )
+
+            record = CandidateRewardRecord(
                 question_id=question_item["question_id"],
                 question=question_item["question"],
                 gold_answer=question_item.get("answer"),
-                candidate_frames=[item["frame_id"] for item in candidate["frames"]],
+                frame_ids=frame_ids,
                 candidate_type=candidate["candidate_type"],
                 predicted_answer=predicted_answer,
-                reward=reward_breakdown["reward"],
+                reward=reward_value,
                 reward_breakdown=reward_breakdown,
-                metadata={
+                retrieval_scores=retrieval_scores,
+                retrieval_ranks=retrieval_ranks,
+                is_hard_negative=is_hard_negative,
+                top_k=top_k,
+                selected_items=[
+                    {
+                        "frame_id": item["frame_id"],
+                        "caption": item["caption"],
+                        "score": float(item.get("score", 0.0)),
+                        "rank": int(item.get("rank", 0)),
+                    }
+                    for item in candidate["frames"]
+                ],
+                debug={
                     "runner": runner,
+                    "seed": seed + question_index,
+                    "rank_source": candidate["frames"][0].get("rank_source", "unknown")
+                    if candidate["frames"]
+                    else "unknown",
+                },
+                metadata={
                     "top_k": top_k,
                     "seed": seed + question_index,
                     "frame_captions": [item["caption"] for item in candidate["frames"]],
-                    "frame_scores": [item["score"] for item in candidate["frames"]],
+                    "frame_scores": [item.get("score", 0.0) for item in candidate["frames"]],
                 },
             )
-            rows.append(asdict(row))
+            question_rows.append(asdict(record))
+
+        _warn_if_zero_variance(
+            [row["reward"] for row in question_rows],
+            runner=runner,
+        )
+        rows.extend(question_rows)
     return rows
+
+
+def build_summary(rows: list[dict]) -> dict:
+    if not rows:
+        return {
+            "num_questions": 0,
+            "num_candidates": 0,
+            "reward_mean": 0.0,
+            "reward_std": 0.0,
+            "reward_min": 0.0,
+            "reward_max": 0.0,
+            "num_zero_rewards": 0,
+            "num_hard_negatives": 0,
+            "candidate_type_distribution": {},
+        }
+
+    rewards = [row["reward"] for row in rows]
+    n = len(rewards)
+    mean_r = sum(rewards) / n
+    std_r = (sum((r - mean_r) ** 2 for r in rewards) / n) ** 0.5
+
+    from collections import Counter
+
+    type_dist = dict(Counter(row["candidate_type"] for row in rows))
+    question_ids = {row["question_id"] for row in rows}
+
+    return {
+        "num_questions": len(question_ids),
+        "num_candidates": n,
+        "reward_mean": round(mean_r, 6),
+        "reward_std": round(std_r, 6),
+        "reward_min": round(min(rewards), 6),
+        "reward_max": round(max(rewards), 6),
+        "num_zero_rewards": sum(1 for r in rewards if r == 0.0),
+        "num_hard_negatives": sum(1 for row in rows if row.get("is_hard_negative", False)),
+        "candidate_type_distribution": type_dist,
+    }
 
 
 def main() -> None:
@@ -129,8 +276,21 @@ def main() -> None:
     episode_dir = Path(args.episode_dir)
     captions, questions = load_episode_inputs(episode_dir)
 
+    if args.runner == "deepseek":
+        print(
+            "WARNING: --runner deepseek will call the DeepSeek API. "
+            "Ensure DEEPSEEK_API_KEY is set and you have budget.",
+            file=sys.stderr,
+        )
+
     if args.limit is not None:
         questions = questions[: args.limit]
+
+    embedding_cache_dir = args.embedding_cache_dir
+    if embedding_cache_dir is None and (episode_dir / "embeddings").exists():
+        subdirs = sorted((episode_dir / "embeddings").iterdir())
+        if subdirs:
+            embedding_cache_dir = str(subdirs[0])
 
     rows = generate_rows(
         captions=captions,
@@ -141,21 +301,38 @@ def main() -> None:
         max_output_tokens=args.max_output_tokens,
         top_k=args.top_k,
         seed=args.seed,
+        embedding_cache_dir=embedding_cache_dir,
+        embedding_model=args.embedding_model,
+        hard_negative_min_score=args.hard_negative_min_score,
+        hard_negative_max_reward=args.hard_negative_max_reward,
     )
-    save_jsonl(rows, args.output)
+
+    if not args.dry_run:
+        save_jsonl(rows, args.output)
+        summary = build_summary(rows)
+        save_json(summary, args.summary_output)
+    else:
+        summary = build_summary(rows)
 
     print("=" * 80)
     print("Candidate Reward Dataset Generation")
     print("=" * 80)
-    print(f"Episode dir: {episode_dir}")
-    print(f"Runner: {args.runner}")
-    print(f"Top-k: {args.top_k}")
-    print(f"Questions processed: {len(questions)}")
-    print(f"Rows generated: {len(rows)}")
-    print(f"Output: {args.output}")
-    if args.dry_run and rows:
-        print("Sample row:")
-        print(rows[0])
+    print(f"Episode dir:       {episode_dir}")
+    print(f"Runner:            {args.runner}")
+    print(f"Embedding cache:   {embedding_cache_dir or 'lexical fallback'}")
+    print(f"Top-k:             {args.top_k}")
+    print(f"Questions:         {len(questions)}")
+    print(f"Rows generated:    {len(rows)}")
+    print(f"Hard negatives:    {summary['num_hard_negatives']}")
+    print(f"Zero rewards:      {summary['num_zero_rewards']} / {len(rows)}")
+    print(f"Reward mean/std:   {summary['reward_mean']:.4f} / {summary['reward_std']:.4f}")
+    if args.dry_run:
+        print("(dry_run — outputs not written)")
+        if rows:
+            print("Sample row keys:", list(rows[0].keys()))
+    else:
+        print(f"Output:            {args.output}")
+        print(f"Summary:           {args.summary_output}")
 
 
 if __name__ == "__main__":

@@ -56,9 +56,10 @@ def build_scorer_training_examples(
 
     examples: list[ScorerTrainingExample] = []
     for row in dataset_rows:
+        frame_ids = row.get("frame_ids") or row.get("candidate_frames", [])
         candidate_embeddings = [
             frame_id_to_embedding[frame_id]
-            for frame_id in row["candidate_frames"]
+            for frame_id in frame_ids
             if frame_id in frame_id_to_embedding
         ]
         if not candidate_embeddings:

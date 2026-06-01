@@ -44,9 +44,17 @@ class CandidateRewardRecord:
     question_id: str
     question: str
     gold_answer: str | None
-    candidate_frames: list[str]
+    frame_ids: list[str]
     candidate_type: str
     predicted_answer: str
     reward: float
     reward_breakdown: dict[str, float] = field(default_factory=dict)
+    retrieval_scores: list[float] = field(default_factory=list)
+    retrieval_ranks: list[int] = field(default_factory=list)
+    is_hard_negative: bool = False
+    top_k: int = 3
+    episode_id: str | None = None
+    candidate_id: str | None = None
+    selected_items: list[dict] = field(default_factory=list)
+    debug: dict = field(default_factory=dict)
     metadata: dict[str, object] = field(default_factory=dict)

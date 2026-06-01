@@ -1,16 +1,25 @@
 from __future__ import annotations
 
 import random
+from functools import lru_cache
+from pathlib import Path
 from typing import Iterable
 
 from mini_eqa.evaluation.answer_metrics import normalize_text
+
+
+@lru_cache(maxsize=None)
+def _load_sbert(model_name: str):
+    from sentence_transformers import SentenceTransformer
+
+    return SentenceTransformer(model_name)
 
 
 def _tokenize(text: str) -> set[str]:
     return set(normalize_text(text).split())
 
 
-def rank_frames_for_question(captions: list[dict], question: str) -> list[dict]:
+def _rank_lexical(captions: list[dict], question: str) -> list[dict]:
     question_tokens = _tokenize(question)
     ranked = []
     for index, item in enumerate(captions):
@@ -26,7 +35,68 @@ def rank_frames_for_question(captions: list[dict], question: str) -> list[dict]:
             }
         )
     ranked.sort(key=lambda item: (-item["score"], item["original_index"], item["frame_id"]))
+    for rank, item in enumerate(ranked):
+        item["rank"] = rank
     return ranked
+
+
+def _rank_cached_sbert(
+    captions: list[dict],
+    question: str,
+    cache_dir: Path,
+    model_name: str | None,
+) -> list[dict]:
+    import numpy as np
+
+    from mini_eqa.utils.io_utils import load_json
+
+    embeddings_path = cache_dir / "caption_embeddings.npy"
+    metadata_path = cache_dir / "caption_embedding_meta.json"
+
+    if not embeddings_path.exists():
+        raise FileNotFoundError(f"Embedding file not found: {embeddings_path}")
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
+
+    caption_embeddings = np.load(embeddings_path)
+    metadata = load_json(metadata_path)
+    items = metadata["items"]
+    resolved_model = model_name or metadata.get("model_name", "all-MiniLM-L6-v2")
+
+    model = _load_sbert(resolved_model)
+    q_emb = model.encode([question], convert_to_numpy=True, normalize_embeddings=True)[0]
+    scores = caption_embeddings @ q_emb
+
+    frame_id_to_score = {item["frame_id"]: float(scores[i]) for i, item in enumerate(items)}
+
+    ranked = []
+    for index, cap in enumerate(captions):
+        frame_id = cap["frame_id"]
+        score = frame_id_to_score.get(frame_id, 0.0)
+        ranked.append(
+            {
+                "frame_id": frame_id,
+                "caption": cap["caption"],
+                "score": score,
+                "rank_source": "cached_sbert",
+                "original_index": index,
+            }
+        )
+    ranked.sort(key=lambda item: (-item["score"], item["original_index"]))
+    for rank, item in enumerate(ranked):
+        item["rank"] = rank
+    return ranked
+
+
+def rank_frames_for_question(
+    captions: list[dict],
+    question: str,
+    cache_dir: str | Path | None = None,
+    model_name: str | None = None,
+) -> list[dict]:
+    if cache_dir is not None:
+        return _rank_cached_sbert(captions, question, Path(cache_dir), model_name)
+    return _rank_lexical(captions, question)
 
 
 def _sample_frames(pool: Iterable[dict], sample_size: int, rng: random.Random) -> list[dict]:
@@ -98,8 +168,15 @@ def build_candidate_sets(
     question: str,
     sample_size: int = 3,
     seed: int = 0,
+    cache_dir: str | Path | None = None,
+    model_name: str | None = None,
 ) -> list[dict]:
-    ranked_frames = rank_frames_for_question(captions=captions, question=question)
+    ranked_frames = rank_frames_for_question(
+        captions=captions,
+        question=question,
+        cache_dir=cache_dir,
+        model_name=model_name,
+    )
     rng = random.Random(seed)
 
     candidates = [
